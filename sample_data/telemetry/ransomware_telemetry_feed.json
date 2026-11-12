@@ -1,0 +1,38 @@
+{
+  "source": "SRM-CYBER-LAB-SANDBOX-VM",
+  "events": [
+    {
+      "event_type": "PROCESS_CREATE",
+      "timestamp": "2026-10-14T10:15:00Z",
+      "process_id": 5012,
+      "process_name": "disguised_archive.exe",
+      "parent_process_id": 1420,
+      "parent_process_name": "explorer.exe",
+      "command_line": "disguised_archive.exe -silent"
+    },
+    {
+      "event_type": "PROCESS_CREATE",
+      "timestamp": "2026-10-14T10:15:03Z",
+      "process_id": 5120,
+      "process_name": "cmd.exe",
+      "parent_process_id": 5012,
+      "parent_process_name": "disguised_archive.exe",
+      "command_line": "cmd.exe /c vssadmin.exe delete shadows /all /quiet"
+    },
+    {
+      "event_type": "NETWORK_CONNECT",
+      "timestamp": "2026-10-14T10:15:07Z",
+      "process_id": 5012,
+      "process_name": "disguised_archive.exe",
+      "destination_ip": "185.196.11.42",
+      "destination_port": 443
+    },
+    {
+      "event_type": "FILE_WRITE",
+      "timestamp": "2026-10-14T10:15:12Z",
+      "process_id": 5012,
+      "process_name": "disguised_archive.exe",
+      "target_path": "C:\\Users\\User\\Documents\\FINANCIAL_README_RESTORE.txt"
+    }
+  ]
+}

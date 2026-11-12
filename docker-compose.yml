@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  forensics-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: forensics-threat-reconstruction
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=production
+      - DEBUG=False
+      - HOST=0.0.0.0
+      - PORT=8000
+      - DATABASE_URL=sqlite+aiosqlite:////app/forensics.sqlite3
+      - OLLAMA_ENABLED=False
+    volumes:
+      - forensics_data:/app/data
+      - forensics_reports:/app/reports/generated
+      - forensics_artifacts:/app/ml/artifacts
+    restart: unless-stopped
+
+volumes:
+  forensics_data:
+  forensics_reports:
+  forensics_artifacts:

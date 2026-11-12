@@ -1,0 +1,69 @@
+# ==============================================================================
+# ARGUS - AI Cyber Attack & Defense Simulation Platform
+# Git Ignore Configuration
+# ==============================================================================
+
+# Python Environments & Caches
+.venv/
+venv/
+env/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Node & Frontend Build Artifacts
+node_modules/
+**/node_modules/
+dist/
+**/dist/
+.vite/
+.npm-cache/
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# Environment & Sensitive Credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.cert
+*.pfx
+
+# Database & Runtime State
+*.sqlite
+*.sqlite3
+*.db
+argus_forensics.db
+forensics.sqlite3
+
+# Quarantined Samples & Uploads (Never commit quarantined samples to Git)
+data/uploads/*
+!data/uploads/.gitkeep
+data/quarantine/*
+!data/quarantine/.gitkeep
+reports/generated/*
+!reports/generated/.gitkeep
+
+# Large Archives & Packages
+*.zip
+*.tar.gz
+*.rar
+
+# ML Temporary Files & Checkpoint Backups
+ml/artifacts/*.bak
+ml/artifacts/*.tmp
+
+# Operating System & IDE Files
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo

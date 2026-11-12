@@ -1,0 +1,52 @@
+{
+  "model_name": "Forensic-RandomForest-Classifier",
+  "model_version": "1.2.0",
+  "dataset_provenance": "SRM CSE-DSAI Forensic Benchmark Corpus (Synthetic Calibrated)",
+  "dataset_size": 1200,
+  "features_used": [
+    "file_size_kb",
+    "shannon_entropy",
+    "url_count",
+    "ip_count",
+    "domain_count",
+    "embedded_objects_count",
+    "yara_matches_count",
+    "critical_evidence_count",
+    "high_evidence_count",
+    "medium_evidence_count",
+    "suspicious_api_count",
+    "macro_present",
+    "double_extension",
+    "script_patterns_count"
+  ],
+  "accuracy": 0.975,
+  "precision": 0.9787,
+  "recall": 0.9583,
+  "f1_score": 0.9684,
+  "false_positive_rate": 0.0139,
+  "confusion_matrix": {
+    "true_negative": 142,
+    "false_positive": 2,
+    "false_negative": 4,
+    "true_positive": 92
+  },
+  "roc_auc": 0.968,
+  "trained_at": "2026-11-02T04:31:29.673187+00:00",
+  "is_experimental": true,
+  "feature_importances": {
+    "high_evidence_count": 0.21435759845516678,
+    "shannon_entropy": 0.15058048474515956,
+    "yara_matches_count": 0.14649802728999045,
+    "critical_evidence_count": 0.14421568293010442,
+    "url_count": 0.07180614198487507,
+    "suspicious_api_count": 0.06525983574802126,
+    "ip_count": 0.06289441558094923,
+    "domain_count": 0.034880324078293515,
+    "file_size_kb": 0.024647069648066497,
+    "medium_evidence_count": 0.023952503166830348,
+    "macro_present": 0.021252567062018498,
+    "embedded_objects_count": 0.01915958160660113,
+    "script_patterns_count": 0.018063673625681828,
+    "double_extension": 0.002432094078241387
+  }
+}

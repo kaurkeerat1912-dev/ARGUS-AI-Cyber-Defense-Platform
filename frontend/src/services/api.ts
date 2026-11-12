@@ -1,0 +1,179 @@
+import {
+  InvestigationSummary,
+  InvestigationDetail,
+  EvidenceItem,
+  BehavioralEvent,
+  AttackGraphData,
+  MetricsOverview,
+  ModelEvaluation,
+  SystemHealth,
+  DefensePlan,
+  ExecuteActionResponse,
+  ExecuteAllResponse,
+} from '../types';
+
+const getApiBase = (): string => {
+  if (typeof window !== 'undefined') {
+    const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    if (isLocal && window.location.port === '5173') {
+      return `http://${window.location.hostname}:8000/api/v1`;
+    }
+  }
+  return '/api/v1';
+};
+
+const buildUrl = (path: string, params?: Record<string, string | number | undefined>): string => {
+  const base = getApiBase();
+  const rawUrl = base.startsWith('http')
+    ? `${base}${path.startsWith('/') ? path : `/${path}`}`
+    : `${window.location.origin}${base}${path.startsWith('/') ? path : `/${path}`}`;
+  const url = new URL(rawUrl);
+  if (params) {
+    Object.entries(params).forEach(([key, val]) => {
+      if (val !== undefined && val !== null && val !== '') {
+        url.searchParams.set(key, String(val));
+      }
+    });
+  }
+  return url.toString();
+};
+
+export const api = {
+  // Ingest & Analyze
+  async analyzeFile(file: File): Promise<InvestigationSummary> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(buildUrl('/files/analyze'), {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Analysis failed' }));
+      throw new Error(err.detail || 'File analysis failed');
+    }
+    return res.json();
+  },
+
+  // Investigations
+  async getInvestigations(params?: { risk_level?: string; search?: string; limit?: number }): Promise<InvestigationSummary[]> {
+    const res = await fetch(buildUrl('/investigations', params));
+    if (!res.ok) throw new Error('Failed to fetch investigations');
+    return res.json();
+  },
+
+  async getInvestigation(id: string): Promise<InvestigationDetail> {
+    const res = await fetch(buildUrl(`/investigations/${id}`));
+    if (!res.ok) throw new Error('Failed to fetch investigation');
+    return res.json();
+  },
+
+  async getEvidence(id: string, params?: { category?: string; severity?: string }): Promise<EvidenceItem[]> {
+    const res = await fetch(buildUrl(`/investigations/${id}/evidence`, params));
+    if (!res.ok) throw new Error('Failed to fetch evidence');
+    return res.json();
+  },
+
+  async getEvents(id: string): Promise<BehavioralEvent[]> {
+    const res = await fetch(buildUrl(`/investigations/${id}/events`));
+    if (!res.ok) throw new Error('Failed to fetch behavioral events');
+    return res.json();
+  },
+
+  async getGraph(id: string): Promise<AttackGraphData> {
+    const res = await fetch(buildUrl(`/investigations/${id}/graph`));
+    if (!res.ok) throw new Error('Failed to fetch attack graph');
+    return res.json();
+  },
+
+  async getReportJson(id: string): Promise<any> {
+    const res = await fetch(buildUrl(`/investigations/${id}/report`));
+    if (!res.ok) throw new Error('Failed to fetch report JSON');
+    return res.json();
+  },
+
+  getPdfUrl(id: string): string {
+    return buildUrl(`/investigations/${id}/report/pdf`);
+  },
+
+  // Telemetry
+  async importTelemetry(investigationId: string, events: any[], isSimulated = false): Promise<any> {
+    const res = await fetch(buildUrl('/telemetry/import'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        investigation_id: investigationId,
+        events,
+        is_simulated: isSimulated,
+      }),
+    });
+    if (!res.ok) throw new Error('Failed to import telemetry');
+    return res.json();
+  },
+
+  async simulateTelemetry(investigationId: string): Promise<any> {
+    const res = await fetch(buildUrl(`/telemetry/simulate/${investigationId}`), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to simulate telemetry');
+    return res.json();
+  },
+
+  // Metrics & ML
+  async getMetricsOverview(): Promise<MetricsOverview> {
+    const res = await fetch(buildUrl('/metrics/overview'));
+    if (!res.ok) throw new Error('Failed to fetch SOC metrics');
+    return res.json();
+  },
+
+  async getModelEvaluation(): Promise<ModelEvaluation> {
+    const res = await fetch(buildUrl('/models/evaluation'));
+    if (!res.ok) throw new Error('Failed to fetch ML model evaluation');
+    return res.json();
+  },
+
+  async retrainModels(): Promise<ModelEvaluation> {
+    const res = await fetch(buildUrl('/models/retrain'), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to retrain models');
+    return res.json();
+  },
+
+  // Defensive Simulation
+  async getDefensePlan(investigationId: string): Promise<DefensePlan> {
+    const res = await fetch(buildUrl(`/defense/plan/${investigationId}`));
+    if (!res.ok) throw new Error('Failed to fetch defense plan');
+    return res.json();
+  },
+
+  async executeDefenseAction(investigationId: string, actionId: string): Promise<ExecuteActionResponse> {
+    const res = await fetch(buildUrl(`/defense/action/${investigationId}/${actionId}/execute`), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to execute defense action');
+    return res.json();
+  },
+
+  async executeAllDefenseActions(investigationId: string): Promise<ExecuteAllResponse> {
+    const res = await fetch(buildUrl(`/defense/${investigationId}/execute-all`), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to execute all defense actions');
+    return res.json();
+  },
+
+  async resetDefenseSimulation(investigationId: string): Promise<DefensePlan> {
+    const res = await fetch(buildUrl(`/defense/${investigationId}/reset`), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to reset defense simulation');
+    return res.json();
+  },
+
+  // Health
+  async getSystemHealth(): Promise<SystemHealth> {
+    const res = await fetch(buildUrl('/health'));
+    if (!res.ok) throw new Error('Failed to fetch system health');
+    return res.json();
+  },
+};
