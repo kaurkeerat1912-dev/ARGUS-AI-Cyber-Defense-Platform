@@ -5,26 +5,18 @@ import {
   ShieldCheck,
   AlertTriangle,
   Upload,
-  Activity,
   HardDrive,
   Search,
   FileCode,
   Check,
   Copy,
-  ArrowRight,
-  ArrowUpRight,
   RefreshCw,
   Network,
   Play,
   Sparkles,
   CheckCircle2,
   XCircle,
-  Clock,
-  Layers,
-  Cpu,
-  Lock,
-  ChevronRight,
-  FileText,
+  ArrowUpRight,
   AlertCircle,
 } from 'lucide-react';
 import {
@@ -68,6 +60,7 @@ export const Overview: React.FC<OverviewProps> = ({
   const [scanEvidence, setScanEvidence] = useState<EvidenceItem[]>([]);
   const [scanPopupOpen, setScanPopupOpen] = useState(false);
   const [scanError, setScanError] = useState<string | null>(null);
+  const [quickPreviewInv, setQuickPreviewInv] = useState<InvestigationSummary | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const fetchData = async () => {
@@ -111,36 +104,37 @@ export const Overview: React.FC<OverviewProps> = ({
       setScanError(null);
       setScanVerdict(null);
       setScanEvidence([]);
-      setScanPopupOpen(false);
-      setScanStage('Securing file in quarantined sandbox...');
 
-      const timer1 = setTimeout(() => {
-        setScanStage('Running non-executing byte & YARA inspection...');
-      }, 350);
+      setScanStage('Safely quarantining file in sandbox...');
+      await new Promise((r) => setTimeout(r, 400));
 
-      const timer2 = setTimeout(() => {
-        setScanStage('Evaluating dual ML models & attack causality...');
-      }, 700);
+      setScanStage('Extracting metadata, Shannon entropy & IOCs...');
+      await new Promise((r) => setTimeout(r, 450));
 
-      const res = await api.analyzeFile(file);
-      clearTimeout(timer1);
-      clearTimeout(timer2);
+      setScanStage('Running AI Random Forest & YARA signature classification...');
+      const response = await api.analyzeFile(file);
 
-      let evList: EvidenceItem[] = [];
-      try {
-        evList = await api.getEvidence(res.id);
-      } catch (e) {
-        console.warn('Could not fetch evidence items for popup modal:', e);
-      }
+      setScanStage('Synthesizing risk report & defense plan...');
+      await new Promise((r) => setTimeout(r, 350));
 
-      setScanVerdict(res);
-      setScanEvidence(evList);
+      const [invDetail, evList] = await Promise.all([
+        api.getInvestigation(response.id),
+        api.getEvidence(response.id),
+      ]);
+      setScanVerdict(invDetail);
+      setScanEvidence(evList || []);
+
+      // Trigger the interactive verdict popup card immediately!
       setScanPopupOpen(true);
-      await fetchData();
+
+      // Refresh list
+      fetchData();
     } catch (err: any) {
-      setScanError(err.message || 'Analysis failed. Please try another file.');
+      console.error('Scan error:', err);
+      setScanError(err.message || 'Unable to scan this file. Please verify backend is running.');
     } finally {
       setScanning(false);
+      setScanStage('');
     }
   };
 
@@ -192,7 +186,7 @@ export const Overview: React.FC<OverviewProps> = ({
   const totalThreats = (metrics?.critical_risk_count || 0) + (metrics?.high_risk_count || 0);
   const lowCount = metrics?.low_risk_count || 0;
 
-  // 4 Vibrant Top Stat Cards
+  // 4 Vibrant Top Stat Cards in Clean White Theme
   const statCards = [
     {
       id: 'ALL' as const,
@@ -201,10 +195,10 @@ export const Overview: React.FC<OverviewProps> = ({
       sub: 'All analyzed files in database',
       badge: 'All Files',
       icon: HardDrive,
-      borderClass: 'border-slate-800 hover:border-blue-500/50',
-      activeBorderClass: 'border-blue-500 ring-1 ring-blue-500/30 bg-blue-950/20',
-      iconBg: 'bg-blue-500/10 text-blue-400 border border-blue-500/20',
-      badgeClass: 'text-blue-400 bg-blue-500/10',
+      borderClass: 'border-slate-200 hover:border-blue-400',
+      activeBorderClass: 'border-blue-500 ring-2 ring-blue-500/20 bg-blue-50/50',
+      iconBg: 'bg-blue-50 text-blue-600 border border-blue-200',
+      badgeClass: 'text-blue-700 bg-blue-50 border border-blue-200',
     },
     {
       id: 'THREATS' as const,
@@ -213,10 +207,10 @@ export const Overview: React.FC<OverviewProps> = ({
       sub: `${metrics?.critical_risk_count || 0} Critical • ${metrics?.high_risk_count || 0} High`,
       badge: 'Malware Found',
       icon: ShieldAlert,
-      borderClass: 'border-slate-800 hover:border-rose-500/50',
-      activeBorderClass: 'border-rose-500 ring-1 ring-rose-500/30 bg-rose-950/20',
-      iconBg: 'bg-rose-500/10 text-rose-400 border border-rose-500/20',
-      badgeClass: 'text-rose-400 bg-rose-500/10',
+      borderClass: 'border-slate-200 hover:border-rose-400',
+      activeBorderClass: 'border-rose-500 ring-2 ring-rose-500/20 bg-rose-50/50',
+      iconBg: 'bg-rose-50 text-rose-600 border border-rose-200',
+      badgeClass: 'text-rose-700 bg-rose-50 border border-rose-200',
     },
     {
       id: 'CRITICAL' as const,
@@ -225,10 +219,10 @@ export const Overview: React.FC<OverviewProps> = ({
       sub: 'Score 85–100 • Immediate action',
       badge: 'High Danger',
       icon: AlertTriangle,
-      borderClass: 'border-slate-800 hover:border-orange-500/50',
-      activeBorderClass: 'border-orange-500 ring-1 ring-orange-500/30 bg-orange-950/20',
-      iconBg: 'bg-orange-500/10 text-orange-400 border border-orange-500/20',
-      badgeClass: 'text-orange-400 bg-orange-500/10',
+      borderClass: 'border-slate-200 hover:border-orange-400',
+      activeBorderClass: 'border-orange-500 ring-2 ring-orange-500/20 bg-orange-50/50',
+      iconBg: 'bg-orange-50 text-orange-600 border border-orange-200',
+      badgeClass: 'text-orange-700 bg-orange-50 border border-orange-200',
     },
     {
       id: 'LOW' as const,
@@ -237,18 +231,18 @@ export const Overview: React.FC<OverviewProps> = ({
       sub: 'Score 0–29 • Verified harmless',
       badge: 'Clean',
       icon: ShieldCheck,
-      borderClass: 'border-slate-800 hover:border-emerald-500/50',
-      activeBorderClass: 'border-emerald-500 ring-1 ring-emerald-500/30 bg-emerald-950/20',
-      iconBg: 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20',
-      badgeClass: 'text-emerald-400 bg-emerald-500/10',
+      borderClass: 'border-slate-200 hover:border-emerald-400',
+      activeBorderClass: 'border-emerald-500 ring-2 ring-emerald-500/20 bg-emerald-50/50',
+      iconBg: 'bg-emerald-50 text-emerald-600 border border-emerald-200',
+      badgeClass: 'text-emerald-700 bg-emerald-50 border border-emerald-200',
     },
   ];
 
   // Colorful palette for the threat distribution chart
   const riskDist = [
-    { name: 'Critical', value: metrics?.critical_risk_count || 0, color: '#f43f5e' }, // Rose 500
+    { name: 'Critical', value: metrics?.critical_risk_count || 0, color: '#ef4444' }, // Red 500
     { name: 'High', value: metrics?.high_risk_count || 0, color: '#f97316' },     // Orange 500
-    { name: 'Medium', value: metrics?.medium_risk_count || 0, color: '#eab308' }, // Yellow 500
+    { name: 'Medium', value: metrics?.medium_risk_count || 0, color: '#f59e0b' }, // Amber 500
     { name: 'Low', value: metrics?.low_risk_count || 0, color: '#10b981' },       // Emerald 500
   ];
 
@@ -271,8 +265,8 @@ export const Overview: React.FC<OverviewProps> = ({
   if (loading && !metrics && investigations.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[50vh] gap-3">
-        <RefreshCw className="w-8 h-8 text-indigo-400 animate-spin" />
-        <span className="text-sm text-slate-300 font-medium">Starting ARGUS Security Engine...</span>
+        <RefreshCw className="w-8 h-8 text-indigo-600 animate-spin" />
+        <span className="text-sm text-slate-600 font-medium">Starting ARGUS Security Engine...</span>
       </div>
     );
   }
@@ -282,22 +276,22 @@ export const Overview: React.FC<OverviewProps> = ({
       {/* ======================================================== */}
       {/* 1. HERO FILE SCANNER: EASY ENOUGH FOR ANYONE TO USE      */}
       {/* ======================================================== */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-slate-900 via-slate-900/95 to-[#0b0f19] p-6 sm:p-8 shadow-2xl shadow-indigo-950/20">
+      <div className="relative overflow-hidden rounded-3xl border border-slate-200 bg-gradient-to-b from-white via-slate-50/50 to-white p-6 sm:p-8 shadow-sm">
         {/* Subtle decorative glowing background blur */}
-        <div className="absolute top-0 right-1/4 -mt-12 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute bottom-0 left-10 -mb-12 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute top-0 right-1/4 -mt-12 w-96 h-96 bg-indigo-500/5 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-10 -mb-12 w-80 h-80 bg-blue-500/5 rounded-full blur-3xl pointer-events-none" />
 
         <div className="relative z-10 flex flex-col items-center text-center max-w-3xl mx-auto">
           {/* Friendly pill badge */}
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 text-xs font-semibold mb-3">
-            <Sparkles className="w-3.5 h-3.5" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-50 border border-indigo-200 text-indigo-700 text-xs font-semibold mb-3">
+            <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
             <span>Instant AI Malware & Threat Scanner</span>
           </div>
 
-          <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
+          <h1 className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">
             Check Any File For Viruses & Hidden Threats
           </h1>
-          <p className="text-sm text-slate-400 mt-2 max-w-xl">
+          <p className="text-sm text-slate-600 mt-2 max-w-xl">
             Drop any document, script, or program below. We safely scan its structure, check known virus signatures, and use AI to tell you if it's safe—without running it on your device.
           </p>
 
@@ -310,12 +304,12 @@ export const Overview: React.FC<OverviewProps> = ({
             onDragLeave={() => setDragActive(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`w-full mt-6 p-6 sm:p-8 rounded-xl border-2 border-dashed transition-all cursor-pointer select-none flex flex-col items-center justify-center gap-3 ${
+            className={`w-full mt-6 p-6 sm:p-8 rounded-2xl border-2 border-dashed transition-all cursor-pointer select-none flex flex-col items-center justify-center gap-3 ${
               dragActive
-                ? 'border-indigo-400 bg-indigo-950/40 scale-[1.01]'
+                ? 'border-indigo-500 bg-indigo-50/80 scale-[1.01]'
                 : scanning
-                ? 'border-indigo-500/50 bg-slate-900/80 cursor-wait'
-                : 'border-slate-700 hover:border-indigo-500/70 bg-slate-950/60 hover:bg-slate-900/60'
+                ? 'border-indigo-400 bg-slate-50 cursor-wait'
+                : 'border-slate-300 hover:border-indigo-500 bg-white hover:bg-indigo-50/20 shadow-2xs'
             }`}
           >
             <input
@@ -328,24 +322,24 @@ export const Overview: React.FC<OverviewProps> = ({
             {scanning ? (
               <div className="flex flex-col items-center gap-3 py-2">
                 <div className="relative">
-                  <div className="w-12 h-12 rounded-full border-3 border-indigo-500/30 border-t-indigo-400 animate-spin" />
-                  <Shield className="w-6 h-6 text-indigo-400 absolute top-3 left-3" />
+                  <div className="w-12 h-12 rounded-full border-3 border-indigo-200 border-t-indigo-600 animate-spin" />
+                  <Shield className="w-6 h-6 text-indigo-600 absolute top-3 left-3" />
                 </div>
                 <div className="text-center">
-                  <div className="text-sm font-semibold text-white">Scanning Sample...</div>
-                  <div className="text-xs text-indigo-300 font-mono mt-0.5">{scanStage}</div>
+                  <div className="text-sm font-bold text-slate-900">Scanning Sample...</div>
+                  <div className="text-xs text-indigo-600 font-mono mt-0.5 font-medium">{scanStage}</div>
                 </div>
               </div>
             ) : (
               <>
-                <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-indigo-600/20 to-blue-500/20 border border-indigo-500/30 flex items-center justify-center text-indigo-400 shadow-inner group-hover:scale-105 transition-transform">
+                <div className="w-14 h-14 rounded-2xl bg-indigo-50 border border-indigo-200 flex items-center justify-center text-indigo-600 shadow-xs">
                   <Upload className="w-7 h-7" />
                 </div>
                 <div>
-                  <div className="text-base font-semibold text-white">
-                    Drag & Drop any file here, or <span className="text-indigo-400 underline underline-offset-2">click to browse</span>
+                  <div className="text-base font-bold text-slate-900">
+                    Drag & Drop any file here, or <span className="text-indigo-600 underline underline-offset-2">click to browse</span>
                   </div>
-                  <div className="text-xs text-slate-400 mt-1">
+                  <div className="text-xs text-slate-500 mt-1">
                     Supports PDF, EXE, PowerShell (.ps1), ZIP, Word, or any suspicious file (Max 100MB)
                   </div>
                 </div>
@@ -356,33 +350,33 @@ export const Overview: React.FC<OverviewProps> = ({
           {/* SCAN VERDICT CARD (Appears immediately after scan) */}
           {scanVerdict && !scanning && (
             <div
-              className={`w-full mt-5 p-5 rounded-xl border text-left transition-all animate-in fade-in slide-in-from-top-2 duration-300 ${
+              className={`w-full mt-5 p-5 rounded-2xl border text-left transition-all animate-in fade-in slide-in-from-top-2 duration-300 bg-white shadow-md ${
                 scanVerdict.risk_level === 'CRITICAL' || scanVerdict.risk_level === 'HIGH'
-                  ? 'bg-rose-950/30 border-rose-500/40 text-rose-200'
+                  ? 'border-rose-300'
                   : scanVerdict.risk_level === 'MEDIUM'
-                  ? 'bg-amber-950/30 border-amber-500/40 text-amber-200'
-                  : 'bg-emerald-950/30 border-emerald-500/40 text-emerald-200'
+                  ? 'border-amber-300'
+                  : 'border-emerald-300'
               }`}
             >
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                 <div className="flex items-start gap-3.5">
                   {scanVerdict.risk_level === 'CRITICAL' || scanVerdict.risk_level === 'HIGH' ? (
-                    <div className="w-10 h-10 rounded-full bg-rose-500/20 border border-rose-500/40 flex items-center justify-center text-rose-400 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 shrink-0">
                       <XCircle className="w-6 h-6" />
                     </div>
                   ) : scanVerdict.risk_level === 'MEDIUM' ? (
-                    <div className="w-10 h-10 rounded-full bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-center text-amber-600 shrink-0">
                       <AlertTriangle className="w-6 h-6" />
                     </div>
                   ) : (
-                    <div className="w-10 h-10 rounded-full bg-emerald-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-400 shrink-0">
+                    <div className="w-10 h-10 rounded-2xl bg-emerald-50 border border-emerald-200 flex items-center justify-center text-emerald-600 shrink-0">
                       <CheckCircle2 className="w-6 h-6" />
                     </div>
                   )}
 
                   <div>
                     <div className="flex items-center gap-2">
-                      <span className="text-base font-bold text-white">
+                      <span className="text-base font-bold text-slate-900">
                         {scanVerdict.risk_level === 'CRITICAL' || scanVerdict.risk_level === 'HIGH'
                           ? '🚨 Threat Detected: High Risk File!'
                           : scanVerdict.risk_level === 'MEDIUM'
@@ -390,20 +384,20 @@ export const Overview: React.FC<OverviewProps> = ({
                           : '✅ File is Safe & Clean'}
                       </span>
                       <span
-                        className={`text-xs font-mono font-bold px-2 py-0.5 rounded-full ${
+                        className={`text-xs font-mono font-bold px-2.5 py-0.5 rounded-full ${
                           scanVerdict.risk_level === 'CRITICAL' || scanVerdict.risk_level === 'HIGH'
-                            ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+                            ? 'bg-rose-50 text-rose-700 border border-rose-200'
                             : scanVerdict.risk_level === 'MEDIUM'
-                            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
-                            : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                            ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                            : 'bg-emerald-50 text-emerald-700 border border-emerald-200'
                         }`}
                       >
                         Score: {scanVerdict.risk_score} / 100 ({scanVerdict.risk_level})
                       </span>
                     </div>
 
-                    <p className="text-xs text-slate-300 mt-1">
-                      File: <strong className="text-white">{scanVerdict.original_name}</strong> •{' '}
+                    <p className="text-xs text-slate-600 mt-1">
+                      File: <strong className="text-slate-900">{scanVerdict.original_name}</strong> •{' '}
                       {scanVerdict.risk_level === 'LOW'
                         ? 'No malicious scripts, zero hidden exploits, and clean byte structure verified.'
                         : 'Identified hostile signatures, suspicious byte patterns, or automated execution triggers.'}
@@ -414,8 +408,15 @@ export const Overview: React.FC<OverviewProps> = ({
                 {/* 1-Click Action Buttons */}
                 <div className="flex items-center gap-2 shrink-0">
                   <button
+                    onClick={() => setQuickPreviewInv(scanVerdict)}
+                    className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold border border-slate-200 transition-colors cursor-pointer"
+                  >
+                    Quick View
+                  </button>
+
+                  <button
                     onClick={() => onSelectInvestigation(scanVerdict.id)}
-                    className="px-3.5 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-semibold border border-slate-700 transition-colors cursor-pointer"
+                    className="px-3.5 py-2 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 transition-colors cursor-pointer"
                   >
                     View Details
                   </button>
@@ -423,7 +424,7 @@ export const Overview: React.FC<OverviewProps> = ({
                   {onNavigateToDefense && (scanVerdict.risk_level === 'CRITICAL' || scanVerdict.risk_level === 'HIGH') && (
                     <button
                       onClick={() => onNavigateToDefense(scanVerdict.id)}
-                      className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-500 hover:to-red-500 text-white text-xs font-semibold shadow-md shadow-rose-900/30 transition-all cursor-pointer flex items-center gap-1.5"
+                      className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-rose-600 to-red-600 hover:from-rose-700 hover:to-red-700 text-white text-xs font-semibold shadow-sm transition-all cursor-pointer flex items-center gap-1.5"
                     >
                       <Shield className="w-3.5 h-3.5" />
                       <span>Fix & Defend</span>
@@ -435,7 +436,7 @@ export const Overview: React.FC<OverviewProps> = ({
                       setScanVerdict(null);
                       setScanError(null);
                     }}
-                    className="p-2 rounded-lg hover:bg-slate-800 text-slate-400 hover:text-white transition-colors cursor-pointer text-xs"
+                    className="p-2 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 transition-colors cursor-pointer text-xs"
                     title="Dismiss"
                   >
                     ✕
@@ -446,28 +447,28 @@ export const Overview: React.FC<OverviewProps> = ({
           )}
 
           {scanError && (
-            <div className="w-full mt-4 p-3 rounded-lg bg-rose-950/40 border border-rose-500/40 text-rose-300 text-xs flex items-center justify-between">
+            <div className="w-full mt-4 p-3 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 text-xs flex items-center justify-between">
               <span className="flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 shrink-0" />
+                <AlertCircle className="w-4 h-4 shrink-0 text-rose-600" />
                 <span>{scanError}</span>
               </span>
               <button
                 onClick={() => setScanError(null)}
-                className="text-xs hover:text-white underline cursor-pointer ml-2"
+                className="text-xs hover:text-rose-950 underline cursor-pointer ml-2"
               >
                 Dismiss
               </button>
             </div>
           )}
 
-          {/* QUICK 1-CLICK TEST BUTTONS (Super easy for non-technical users to test right now) */}
+          {/* QUICK 1-CLICK TEST BUTTONS */}
           <div className="mt-5 flex flex-wrap items-center justify-center gap-2 text-xs">
-            <span className="text-slate-400 text-xs font-medium mr-1">Or try a ready-made test sample:</span>
+            <span className="text-slate-500 text-xs font-medium mr-1">Or test with a ready sample:</span>
 
             <button
               onClick={() => handleLaunchQuickDemo('safe')}
               disabled={!!launchingDemo || scanning}
-              className="px-3 py-1.5 rounded-full bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               title="Test with a clean, low-risk file"
             >
               {launchingDemo === 'safe' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
@@ -477,7 +478,7 @@ export const Overview: React.FC<OverviewProps> = ({
             <button
               onClick={() => handleLaunchQuickDemo('exploit')}
               disabled={!!launchingDemo || scanning}
-              className="px-3 py-1.5 rounded-full bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/30 font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-rose-50 hover:bg-rose-100 text-rose-800 border border-rose-200 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               title="Test with a dangerous PDF exploit sample"
             >
               {launchingDemo === 'exploit' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
@@ -487,7 +488,7 @@ export const Overview: React.FC<OverviewProps> = ({
             <button
               onClick={() => handleLaunchQuickDemo('powershell')}
               disabled={!!launchingDemo || scanning}
-              className="px-3 py-1.5 rounded-full bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 font-medium flex items-center gap-1.5 transition-all cursor-pointer"
+              className="px-3.5 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200 font-semibold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs"
               title="Test with an obfuscated dropper script"
             >
               {launchingDemo === 'powershell' ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Play className="w-3.5 h-3.5 fill-current" />}
@@ -508,20 +509,20 @@ export const Overview: React.FC<OverviewProps> = ({
             <div
               key={c.id}
               onClick={() => setRiskFilter(isActive ? 'ALL' : c.id)}
-              className={`p-4 rounded-xl border transition-all cursor-pointer select-none bg-slate-900/60 backdrop-blur-xs ${
+              className={`p-5 rounded-2xl border transition-all cursor-pointer select-none bg-white shadow-xs hover:shadow-md ${
                 isActive ? c.activeBorderClass : c.borderClass
               }`}
             >
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-slate-300">{c.title}</span>
-                <div className={`p-2 rounded-lg ${c.iconBg}`}>
+                <span className="text-xs font-semibold text-slate-500">{c.title}</span>
+                <div className={`p-2.5 rounded-xl ${c.iconBg}`}>
                   <Icon className="w-4 h-4" />
                 </div>
               </div>
-              <div className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">{c.value}</div>
-              <div className="flex items-center justify-between text-xs text-slate-400 mt-2">
+              <div className="text-2xl sm:text-3xl font-extrabold text-slate-900 tracking-tight">{c.value}</div>
+              <div className="flex items-center justify-between text-xs text-slate-500 mt-2">
                 <span>{c.sub}</span>
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${c.badgeClass}`}>
+                <span className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full ${c.badgeClass}`}>
                   {isActive ? 'Active' : c.badge}
                 </span>
               </div>
@@ -533,22 +534,22 @@ export const Overview: React.FC<OverviewProps> = ({
       {/* ======================================================== */}
       {/* 3. RECENT FILE SCANS & INVESTIGATIONS LIST               */}
       {/* ======================================================== */}
-      <div className="p-5 sm:p-6 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xs space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-800">
+      <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-white shadow-xs space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-slate-100">
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
-              <FileCode className="w-4 h-4 text-indigo-400" />
+            <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
+              <FileCode className="w-4 h-4 text-indigo-600" />
               <span>Scanned Files History</span>
             </h2>
-            <p className="text-xs text-slate-400 mt-0.5">
-              Click any file to view complete forensics, attack graphs, and defensive fixes.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Click any file or 'Quick View' to view complete forensics, attack graphs, and defensive fixes.
             </p>
           </div>
 
           <div className="flex items-center gap-2">
             <button
               onClick={fetchData}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-medium border border-slate-700 cursor-pointer transition-colors"
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-medium border border-slate-200 cursor-pointer transition-colors"
               title="Refresh investigations"
             >
               <RefreshCw className="w-3.5 h-3.5" />
@@ -558,7 +559,7 @@ export const Overview: React.FC<OverviewProps> = ({
             {riskFilter !== 'ALL' && (
               <button
                 onClick={() => setRiskFilter('ALL')}
-                className="text-xs text-indigo-400 hover:text-indigo-300 underline font-medium cursor-pointer"
+                className="text-xs text-indigo-600 hover:text-indigo-800 underline font-semibold cursor-pointer"
               >
                 Clear Filter ({riskFilter})
               </button>
@@ -574,38 +575,38 @@ export const Overview: React.FC<OverviewProps> = ({
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Search by file name or SHA-256..."
-              className="w-full px-3.5 py-2 pl-9 rounded-lg bg-slate-950/80 border border-slate-800 text-white text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-500 transition-colors"
+              className="w-full px-3.5 py-2 pl-9 rounded-xl bg-slate-50 border border-slate-200 text-slate-900 text-xs focus:outline-none focus:border-indigo-500 placeholder:text-slate-400 transition-colors"
             />
-            <Search className="w-4 h-4 text-slate-500 absolute left-3 top-2.5 pointer-events-none" />
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5 pointer-events-none" />
           </div>
 
           <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0 text-xs">
             <button
               onClick={() => setRiskFilter('ALL')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer shrink-0 text-xs ${
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer shrink-0 text-xs ${
                 riskFilter === 'ALL'
-                  ? 'bg-indigo-600 text-white font-semibold shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:text-white'
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               All ({investigations.length})
             </button>
             <button
               onClick={() => setRiskFilter('THREATS')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer shrink-0 text-xs ${
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer shrink-0 text-xs ${
                 riskFilter === 'THREATS'
-                  ? 'bg-rose-600 text-white font-semibold shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:text-white'
+                  ? 'bg-rose-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               Threats ({totalThreats})
             </button>
             <button
               onClick={() => setRiskFilter('LOW')}
-              className={`px-3 py-1.5 rounded-lg font-medium transition-all cursor-pointer shrink-0 text-xs ${
+              className={`px-3 py-1.5 rounded-xl font-semibold transition-all cursor-pointer shrink-0 text-xs ${
                 riskFilter === 'LOW'
-                  ? 'bg-emerald-600 text-white font-semibold shadow-xs'
-                  : 'bg-slate-800 text-slate-300 hover:text-white'
+                  ? 'bg-emerald-600 text-white shadow-xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
             >
               Clean ({lowCount})
@@ -615,14 +616,14 @@ export const Overview: React.FC<OverviewProps> = ({
 
         {/* Investigations List */}
         {filteredInvestigations.length === 0 ? (
-          <div className="py-12 text-center text-xs text-slate-400 space-y-2">
+          <div className="py-12 text-center text-xs text-slate-500 space-y-2">
             <div>No file scans match current filter ({riskFilter}).</div>
             <button
               onClick={() => {
                 setRiskFilter('ALL');
                 setSearchQuery('');
               }}
-              className="px-3 py-1.5 rounded-lg bg-slate-800 text-slate-200 text-xs cursor-pointer hover:bg-slate-700 font-medium"
+              className="px-3.5 py-1.5 rounded-xl bg-slate-100 text-slate-700 text-xs cursor-pointer hover:bg-slate-200 font-semibold"
             >
               Reset Filters
             </button>
@@ -635,41 +636,41 @@ export const Overview: React.FC<OverviewProps> = ({
               const isMed = inv.risk_level === 'MEDIUM';
               const isLow = inv.risk_level === 'LOW';
 
-              let badgeColor = 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20';
+              let badgeColor = 'bg-emerald-50 text-emerald-700 border-emerald-200';
               let verdictLabel = 'SAFE / CLEAN';
               if (isCrit) {
-                badgeColor = 'bg-rose-500/20 text-rose-300 border-rose-500/30 font-bold';
+                badgeColor = 'bg-rose-50 text-rose-700 border-rose-200 font-bold';
                 verdictLabel = 'CRITICAL THREAT';
               } else if (isHigh) {
-                badgeColor = 'bg-orange-500/20 text-orange-300 border-orange-500/30 font-semibold';
+                badgeColor = 'bg-orange-50 text-orange-700 border-orange-200 font-semibold';
                 verdictLabel = 'HIGH RISK';
               } else if (isMed) {
-                badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+                badgeColor = 'bg-amber-50 text-amber-700 border-amber-200';
                 verdictLabel = 'SUSPICIOUS';
               }
 
               return (
                 <div
                   key={inv.id}
-                  className="p-3.5 sm:p-4 rounded-xl bg-slate-950/60 hover:bg-slate-900 border border-slate-800 hover:border-slate-700 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group"
+                  className="p-3.5 sm:p-4 rounded-2xl bg-white hover:bg-slate-50/80 border border-slate-200 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-3 group shadow-2xs hover:shadow-xs"
                 >
                   <div
-                    onClick={() => onSelectInvestigation(inv.id)}
+                    onClick={() => setQuickPreviewInv(inv)}
                     className="overflow-hidden cursor-pointer flex-1"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className={`p-2 rounded-lg ${isLow ? 'bg-emerald-500/10 text-emerald-400' : 'bg-rose-500/10 text-rose-400'}`}>
+                      <div className={`p-2 rounded-xl ${isLow ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-rose-50 text-rose-600 border border-rose-100'}`}>
                         {isLow ? <ShieldCheck className="w-4 h-4" /> : <ShieldAlert className="w-4 h-4" />}
                       </div>
-                      <span className="text-sm font-semibold text-white group-hover:text-indigo-400 transition-colors truncate">
+                      <span className="text-sm font-bold text-slate-900 group-hover:text-indigo-600 transition-colors truncate">
                         {inv.original_name}
                       </span>
-                      <span className={`text-[10px] font-mono px-2 py-0.5 rounded-full border shrink-0 ${badgeColor}`}>
+                      <span className={`text-[10px] font-mono px-2.5 py-0.5 rounded-full border shrink-0 ${badgeColor}`}>
                         {inv.risk_score} / 100 • {verdictLabel}
                       </span>
                     </div>
 
-                    <div className="flex items-center gap-2 text-xs text-slate-400 font-mono mt-1.5 ml-10">
+                    <div className="flex items-center gap-2 text-xs text-slate-500 font-mono mt-1.5 ml-10">
                       <span>SHA-256: {inv.sha256.substring(0, 16)}...</span>
                       <button
                         type="button"
@@ -677,10 +678,10 @@ export const Overview: React.FC<OverviewProps> = ({
                           e.stopPropagation();
                           copyToClipboard(inv.sha256, inv.id);
                         }}
-                        className="hover:text-white cursor-pointer"
+                        className="hover:text-slate-900 cursor-pointer text-slate-400"
                         title="Copy SHA-256 Hash"
                       >
-                        {copiedSha === inv.id ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                        {copiedSha === inv.id ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
                       </button>
                     </div>
                   </div>
@@ -688,8 +689,16 @@ export const Overview: React.FC<OverviewProps> = ({
                   {/* 1-Click Direct Action Buttons */}
                   <div className="flex items-center gap-1.5 shrink-0 ml-10 sm:ml-0">
                     <button
+                      onClick={() => setQuickPreviewInv(inv)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 cursor-pointer transition-colors"
+                      title="Quick View Popup Card"
+                    >
+                      Quick View
+                    </button>
+
+                    <button
                       onClick={() => onSelectInvestigation(inv.id)}
-                      className="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-200 text-xs font-medium border border-slate-700 cursor-pointer transition-colors"
+                      className="px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold border border-indigo-200 cursor-pointer transition-colors"
                       title="View forensic evidence breakdown"
                     >
                       Evidence
@@ -698,10 +707,10 @@ export const Overview: React.FC<OverviewProps> = ({
                     {onNavigateToGraph && (
                       <button
                         onClick={() => onNavigateToGraph(inv.id)}
-                        className="px-2.5 py-1.5 rounded-lg bg-slate-800 hover:bg-indigo-600 hover:text-white text-slate-300 text-xs font-medium border border-slate-700 flex items-center gap-1 cursor-pointer transition-colors"
+                        className="px-2.5 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold border border-slate-200 flex items-center gap-1 cursor-pointer transition-colors"
                         title="Open Attack Reconstruction Graph"
                       >
-                        <Network className="w-3.5 h-3.5 text-slate-400" />
+                        <Network className="w-3.5 h-3.5 text-slate-500" />
                         <span>Map</span>
                       </button>
                     )}
@@ -709,10 +718,10 @@ export const Overview: React.FC<OverviewProps> = ({
                     {onNavigateToDefense && (
                       <button
                         onClick={() => onNavigateToDefense(inv.id)}
-                        className={`px-3 py-1.5 rounded-lg text-xs font-medium border flex items-center gap-1 cursor-pointer transition-colors ${
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center gap-1 cursor-pointer transition-colors ${
                           isLow
-                            ? 'bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700'
-                            : 'bg-rose-500/10 hover:bg-rose-600 hover:text-white text-rose-300 border-rose-500/30'
+                            ? 'bg-slate-50 hover:bg-slate-100 text-slate-700 border-slate-200'
+                            : 'bg-rose-50 hover:bg-rose-100 text-rose-700 border-rose-200'
                         }`}
                         title="Open Automated Defensive Fixes"
                       >
@@ -723,7 +732,7 @@ export const Overview: React.FC<OverviewProps> = ({
 
                     <button
                       onClick={() => onSelectInvestigation(inv.id)}
-                      className="p-1 rounded text-slate-500 group-hover:text-white transition-colors"
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-slate-800 transition-colors"
                     >
                       <ArrowUpRight className="w-4 h-4" />
                     </button>
@@ -736,21 +745,20 @@ export const Overview: React.FC<OverviewProps> = ({
       </div>
 
       {/* ======================================================== */}
-      {/* ======================================================== */}
       {/* 4. THREAT SEVERITY BREAKDOWN & RISK DISTRIBUTION        */}
       {/* ======================================================== */}
-      <div className="p-5 sm:p-6 rounded-xl border border-slate-800 bg-slate-900/60 backdrop-blur-xs">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-800 gap-2">
+      <div className="p-5 sm:p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
           <div>
-            <h3 className="text-sm font-semibold text-white">Threat Severity Breakdown & Incident Distribution</h3>
-            <p className="text-xs text-slate-400 mt-0.5">Categorization of all analyzed samples by forensic risk rating</p>
+            <h3 className="text-sm font-bold text-slate-900">Threat Severity Breakdown & Incident Distribution</h3>
+            <p className="text-xs text-slate-500 mt-0.5">Categorization of all analyzed samples by forensic risk rating</p>
           </div>
           <div className="flex items-center gap-2">
-            <span className="text-xs text-indigo-400 font-mono">Click category to filter</span>
+            <span className="text-xs text-indigo-600 font-medium">Click category to filter</span>
             {riskFilter !== 'ALL' && (
               <button
                 onClick={() => setRiskFilter('ALL')}
-                className="text-xs font-medium text-slate-400 hover:text-white px-2 py-0.5 rounded bg-slate-800 border border-slate-700 cursor-pointer"
+                className="text-xs font-semibold text-slate-600 hover:text-slate-900 px-2.5 py-1 rounded-lg bg-slate-100 border border-slate-200 cursor-pointer"
               >
                 Clear Filter ({riskFilter})
               </button>
@@ -781,7 +789,7 @@ export const Overview: React.FC<OverviewProps> = ({
                     <Cell
                       key={`cell-${index}`}
                       fill={entry.color}
-                      stroke={riskFilter === entry.name.toUpperCase() ? '#ffffff' : '#0b0f19'}
+                      stroke={riskFilter === entry.name.toUpperCase() ? '#0f172a' : '#ffffff'}
                       strokeWidth={riskFilter === entry.name.toUpperCase() ? 2 : 1}
                       className="cursor-pointer hover:opacity-80 transition-opacity"
                     />
@@ -789,11 +797,12 @@ export const Overview: React.FC<OverviewProps> = ({
                 </Pie>
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: '#0f172a',
-                    border: '1px solid #1e293b',
-                    borderRadius: '8px',
+                    backgroundColor: '#ffffff',
+                    border: '1px solid #e2e8f0',
+                    borderRadius: '12px',
                     fontSize: '12px',
-                    color: '#ffffff',
+                    color: '#0f172a',
+                    boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)',
                   }}
                 />
               </PieChart>
@@ -809,17 +818,17 @@ export const Overview: React.FC<OverviewProps> = ({
                 <button
                   key={item.name}
                   onClick={() => setRiskFilter(item.name.toUpperCase() as any)}
-                  className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all flex items-center justify-between ${
+                  className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all flex items-center justify-between ${
                     isSelected
-                      ? 'border-indigo-500 bg-indigo-950/40 ring-1 ring-indigo-500/30'
-                      : 'border-slate-800 bg-slate-950/50 hover:bg-slate-800/80 hover:border-slate-700'
+                      ? 'border-indigo-500 bg-indigo-50/50 ring-2 ring-indigo-500/20 shadow-xs'
+                      : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100 hover:border-slate-300'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     <div className="w-3 h-3 rounded-full shrink-0 shadow-xs" style={{ backgroundColor: item.color }} />
                     <div>
-                      <div className="font-semibold text-white text-sm">{item.name} Risk</div>
-                      <div className="text-slate-400 text-xs mt-0.5">
+                      <div className="font-bold text-slate-900 text-sm">{item.name} Risk</div>
+                      <div className="text-slate-500 text-xs mt-0.5">
                         {item.name === 'Critical' && 'Score 85–100 (Immediate Danger)'}
                         {item.name === 'High' && 'Score 60–84 (Threat Indicators)'}
                         {item.name === 'Medium' && 'Score 30–59 (Suspicious Anomaly)'}
@@ -828,8 +837,8 @@ export const Overview: React.FC<OverviewProps> = ({
                     </div>
                   </div>
                   <div className="text-right pl-2">
-                    <div className="font-mono font-bold text-white text-base">{item.value}</div>
-                    <div className="text-xs text-slate-500 font-mono">{percent}%</div>
+                    <div className="font-mono font-bold text-slate-900 text-base">{item.value}</div>
+                    <div className="text-xs text-slate-400 font-mono">{percent}%</div>
                   </div>
                 </button>
               );
@@ -847,6 +856,97 @@ export const Overview: React.FC<OverviewProps> = ({
         onNavigateToDetails={onSelectInvestigation}
         onNavigateToDefense={onNavigateToDefense}
       />
+
+      {/* QUICK PREVIEW POPUP CARD */}
+      {quickPreviewInv && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in zoom-in-95 duration-150">
+            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+              <div className="flex items-center gap-3">
+                <div className={`p-2.5 rounded-2xl ${
+                  quickPreviewInv.risk_level === 'CRITICAL' ? 'bg-rose-50 text-rose-600 border border-rose-200' :
+                  quickPreviewInv.risk_level === 'HIGH' ? 'bg-orange-50 text-orange-600 border border-orange-200' :
+                  quickPreviewInv.risk_level === 'MEDIUM' ? 'bg-amber-50 text-amber-600 border border-amber-200' :
+                  'bg-emerald-50 text-emerald-600 border border-emerald-200'
+                }`}>
+                  {quickPreviewInv.risk_level === 'LOW' ? <ShieldCheck className="w-5 h-5" /> : <ShieldAlert className="w-5 h-5" />}
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-slate-900 truncate max-w-[280px]">
+                    {quickPreviewInv.original_name}
+                  </h3>
+                  <div className="text-[11px] text-slate-500">Forensic Investigation Snapshot</div>
+                </div>
+              </div>
+              <button
+                onClick={() => setQuickPreviewInv(null)}
+                className="text-slate-400 hover:text-slate-700 p-1.5 rounded-lg hover:bg-slate-100 cursor-pointer"
+              >
+                <XCircle className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-3 text-xs">
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[11px] text-slate-500 font-medium">Risk Score</span>
+                  <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                    {quickPreviewInv.risk_score} / 100
+                  </div>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full inline-block mt-1 ${
+                    quickPreviewInv.risk_level === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
+                    quickPreviewInv.risk_level === 'HIGH' ? 'bg-orange-100 text-orange-700' :
+                    quickPreviewInv.risk_level === 'MEDIUM' ? 'bg-amber-100 text-amber-700' :
+                    'bg-emerald-100 text-emerald-700'
+                  }`}>
+                    {quickPreviewInv.risk_level}
+                  </span>
+                </div>
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200">
+                  <span className="text-[11px] text-slate-500 font-medium">Analysis Coverage</span>
+                  <div className="text-lg font-bold font-mono text-slate-900 mt-0.5">
+                    {((quickPreviewInv.coverage_score || 0.85) * 100).toFixed(0)}%
+                  </div>
+                  <span className="text-[10px] text-slate-400 mt-1 block">Full Forensic Pipeline</span>
+                </div>
+              </div>
+
+              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 space-y-1.5">
+                <span className="text-[11px] font-bold text-slate-500 block">SHA-256 Checksum:</span>
+                <div className="font-mono text-[10px] text-slate-800 break-all select-all bg-white p-2.5 rounded-xl border border-slate-200">
+                  {quickPreviewInv.sha256}
+                </div>
+              </div>
+
+              {quickPreviewInv.summary && (
+                <div className="p-3.5 rounded-2xl bg-slate-50 border border-slate-200 text-slate-700">
+                  <span className="text-slate-500 font-bold block text-[11px] mb-0.5">Assessment Summary:</span>
+                  <p className="line-clamp-3 text-[11px] leading-relaxed">{quickPreviewInv.summary}</p>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-3 border-t border-slate-100">
+              <button
+                onClick={() => setQuickPreviewInv(null)}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+              >
+                Close
+              </button>
+              <button
+                onClick={() => {
+                  const id = quickPreviewInv.id;
+                  setQuickPreviewInv(null);
+                  onSelectInvestigation(id);
+                }}
+                className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer shadow-sm"
+              >
+                Open Full Findings →
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -41,7 +41,7 @@ export function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans antialiased selection:bg-indigo-500/30 selection:text-indigo-200">
+    <div className="min-h-screen bg-[#f8fafc] text-slate-800 flex flex-col font-sans antialiased selection:bg-indigo-500/20 selection:text-indigo-900">
       <Navbar
         onNewScan={() => setActiveTab('investigate')}
         activeTab={activeTab}
@@ -55,7 +55,7 @@ export function App() {
           activeInvestigationId={activeInvestigationId}
         />
 
-        <main className="flex-1 p-6 overflow-y-auto bg-[#0b0f19]">
+        <main className="flex-1 p-6 overflow-y-auto bg-[#f8fafc]">
           {activeTab === 'overview' && (
             <Overview
               onSelectInvestigation={handleSelectInvestigation}
