@@ -5,9 +5,10 @@ Academic Live Project - SRM University Delhi-NCR, Sonipat (2026-2027)
 """
 
 from contextlib import asynccontextmanager
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse
+from fastapi.staticfiles import StaticFiles
 
 from backend.app.core.config import settings
 from backend.app.database.session import init_db
@@ -56,20 +57,6 @@ app.add_middleware(
 app.include_router(api_router, prefix=settings.API_V1_PREFIX)
 
 
-@app.get("/", tags=["Root"])
-async def root():
-    return {
-        "project": settings.PROJECT_NAME,
-        "institution": settings.UNIVERSITY,
-        "department": settings.DEPARTMENT,
-        "session": settings.SESSION,
-        "version": settings.VERSION,
-        "docs_url": "/docs",
-        "api_v1_prefix": settings.API_V1_PREFIX,
-        "status": "ONLINE"
-    }
-
-
 @app.get("/health", tags=["Health"])
 async def health_check():
     return {
@@ -78,6 +65,56 @@ async def health_check():
         "version": settings.VERSION,
         "api_v1_health": f"{settings.API_V1_PREFIX}/health"
     }
+
+
+# ==============================================================================
+# Production SPA Static File Serving
+# Serves the compiled React frontend from frontend/dist if present
+# ==============================================================================
+frontend_dist = settings.BASE_DIR / "frontend" / "dist"
+if frontend_dist.exists() and (frontend_dist / "index.html").exists():
+    assets_dir = frontend_dist / "assets"
+    if assets_dir.exists():
+        app.mount("/assets", StaticFiles(directory=str(assets_dir)), name="assets")
+
+    @app.get("/", tags=["Root"])
+    async def root_or_spa(request: Request):
+        accept = request.headers.get("accept", "")
+        if "text/html" in accept:
+            return FileResponse(str(frontend_dist / "index.html"))
+        return {
+            "project": settings.PROJECT_NAME,
+            "institution": settings.UNIVERSITY,
+            "department": settings.DEPARTMENT,
+            "session": settings.SESSION,
+            "version": settings.VERSION,
+            "docs_url": "/docs",
+            "api_v1_prefix": settings.API_V1_PREFIX,
+            "status": "ONLINE"
+        }
+
+    @app.get("/{full_path:path}", include_in_schema=False)
+    async def serve_spa(full_path: str):
+        # Do not intercept API, docs, or OpenAPI schema endpoints
+        if full_path.startswith("api") or full_path.startswith("docs") or full_path.startswith("openapi.json"):
+            return JSONResponse(status_code=404, content={"detail": "Not found"})
+        candidate = frontend_dist / full_path
+        if full_path and candidate.is_file():
+            return FileResponse(str(candidate))
+        return FileResponse(str(frontend_dist / "index.html"))
+else:
+    @app.get("/", tags=["Root"])
+    async def root():
+        return {
+            "project": settings.PROJECT_NAME,
+            "institution": settings.UNIVERSITY,
+            "department": settings.DEPARTMENT,
+            "session": settings.SESSION,
+            "version": settings.VERSION,
+            "docs_url": "/docs",
+            "api_v1_prefix": settings.API_V1_PREFIX,
+            "status": "ONLINE"
+        }
 
 
 if __name__ == "__main__":

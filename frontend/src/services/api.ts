@@ -13,6 +13,10 @@ import {
 } from '../types';
 
 const getApiBase = (): string => {
+  const envUrl = (import.meta as any).env?.VITE_API_BASE_URL;
+  if (envUrl) {
+    return envUrl.replace(/\/+$/, '');
+  }
   if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     if (isLocal && window.location.port === '5173') {
