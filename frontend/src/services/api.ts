@@ -24,8 +24,10 @@ const getApiBase = (): string => {
     if (isLocal) {
       return `http://${window.location.hostname}:8000/api/v1`;
     }
+    // In production web build (e.g. deployed on Vercel), default to the live Render backend
+    return 'https://argus-ai-cyber-defense-platform.onrender.com/api/v1';
   }
-  return '/api/v1';
+  return 'https://argus-ai-cyber-defense-platform.onrender.com/api/v1';
 };
 
 const buildUrl = (path: string, params?: Record<string, string | number | undefined>): string => {
