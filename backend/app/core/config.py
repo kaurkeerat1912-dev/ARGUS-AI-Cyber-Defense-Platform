@@ -74,13 +74,31 @@ class Settings(BaseSettings):
             v = v.replace("postgres://", "postgresql+asyncpg://", 1)
         elif v.startswith("postgresql://") and not v.startswith("postgresql+asyncpg://"):
             v = v.replace("postgresql://", "postgresql+asyncpg://", 1)
-        # Strip sslmode query parameter if present because asyncpg uses ssl parameter
-        if "postgresql+asyncpg://" in v and "sslmode=" in v:
+
+        # For PostgreSQL with asyncpg, filter out libpq-only query parameters like sslmode, channel_binding, etc.
+        # These are not supported kwargs in asyncpg.connect() and cause TypeError.
+        if "postgresql+asyncpg://" in v and "?" in v:
             import urllib.parse
             url_parts = urllib.parse.urlsplit(v)
             query_params = urllib.parse.parse_qsl(url_parts.query)
-            # Remove sslmode from query string to avoid asyncpg driver rejection
-            clean_query = urllib.parse.urlencode([(k, val) for k, val in query_params if k != "sslmode"])
+
+            # Query parameters supported by asyncpg connect or SQLAlchemy asyncpg dialect:
+            # asyncpg accepts: timeout, command_timeout, statement_cache_size, max_cached_statement_lifetime,
+            # max_cacheable_statement_size, ssl, server_settings
+            # Filter out psycopg/libpq parameters (channel_binding, sslmode, gssencmode, target_session_attrs, etc.)
+            unsupported_params = {
+                "sslmode", "channel_binding", "gssencmode", "application_name",
+                "connect_timeout", "keepalives", "keepalives_idle", "keepalives_interval",
+                "keepalives_count", "tcp_user_timeout"
+            }
+
+            clean_params = []
+            for k, val in query_params:
+                if k.lower() in unsupported_params:
+                    continue
+                clean_params.append((k, val))
+
+            clean_query = urllib.parse.urlencode(clean_params)
             v = urllib.parse.urlunsplit((url_parts.scheme, url_parts.netloc, url_parts.path, clean_query, url_parts.fragment))
         return v
 
