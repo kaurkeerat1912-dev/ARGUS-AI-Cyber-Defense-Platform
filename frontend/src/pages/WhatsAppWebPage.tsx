@@ -49,10 +49,16 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
   // Pre-configured Accounts with real simulated student chat history
   const PRESET_ACCOUNTS = [
     {
-      phone: '+91-98110-24210',
+      phone: '+91-9958449760',
       ownerName: 'Keerat Kaur',
       avatar: 'KK',
-      status: 'SRM University CSE (DSAI)',
+      status: 'Primary Account • SRM CSE (DSAI)',
+    },
+    {
+      phone: '+91-98110-24210',
+      ownerName: 'Keerat (Alternate SIM)',
+      avatar: 'KA',
+      status: 'Secondary Account',
     },
     {
       phone: '+91-98765-43210',
@@ -68,8 +74,8 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
     },
   ];
 
-  // Active User Profile
-  const [currentPhone, setCurrentPhone] = useState<string>('+91-98110-24210');
+  // Active User Profile - Defaults to user's real phone number
+  const [currentPhone, setCurrentPhone] = useState<string>('+91-9958449760');
   const [currentOwner, setCurrentOwner] = useState<string>('Keerat Kaur');
   const [showSwitchPhoneModal, setShowSwitchPhoneModal] = useState<boolean>(false);
   const [customPhoneInput, setCustomPhoneInput] = useState<string>('');
@@ -84,9 +90,140 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
 
   // Real Chat Store for each phone number
   const [phoneChatStore, setPhoneChatStore] = useState<Record<string, any[]>>({
+    '+91-9958449760': [
+      {
+        id: 'chat_real_1',
+        name: 'Accounts & Examination Dept (SRM)',
+        avatar: '🏛️',
+        unread: 1,
+        lastTime: '11:45 AM',
+        phone: '+91-98110-24210',
+        messages: [
+          {
+            id: 'rm1',
+            text: 'Hello Keerat, revised exam fee clearance statement attached. Please review immediately.',
+            time: '11:42 AM',
+            fromMe: false,
+            attachment: {
+              name: 'SRM_FeeClearance_Receipt_Exploit.pdf',
+              size: 2840,
+              type: 'application/pdf',
+              bytes: samplePdfBytes,
+              isSuspicious: true,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_real_2',
+        name: 'Papa (Home)',
+        avatar: '👨',
+        unread: 1,
+        lastTime: '11:10 AM',
+        phone: '+91-98112-44556',
+        messages: [
+          {
+            id: 'rm2_1',
+            text: 'Keerat beta train ticket aur booking receipt check karlo:',
+            time: '11:10 AM',
+            fromMe: false,
+            attachment: {
+              name: 'IRCTC_E_Ticket_Confirmation.pdf',
+              size: 5120,
+              type: 'application/pdf',
+              bytes: sampleCleanBytes,
+              isSuspicious: false,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_real_3',
+        name: 'Major Project Group (DSAI)',
+        avatar: '🎓',
+        unread: 2,
+        lastTime: '10:30 AM',
+        phone: '+91-97112-99384',
+        messages: [
+          {
+            id: 'rm3_1',
+            text: 'Sent you a direct camera snap of the project laboratory hardware circuit for verification.',
+            time: '10:30 AM',
+            fromMe: false,
+            attachment: {
+              name: 'WhatsApp_Camera_Snap_IMG_4091.png',
+              size: 8420,
+              type: 'image/png',
+              bytes: sampleSnapPngBytes,
+              isSuspicious: false,
+              isImage: true,
+            },
+          },
+          {
+            id: 'rm3_2',
+            text: 'Also check this research reference document on AI-driven malicious file detection.',
+            time: '10:35 AM',
+            fromMe: false,
+            attachment: {
+              name: 'CyberDefense_Research_Reference.pdf',
+              size: 4820,
+              type: 'application/pdf',
+              bytes: sampleCleanBytes,
+              isSuspicious: false,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_real_4',
+        name: 'Arushi Gupta (SRM Partner)',
+        avatar: '👩',
+        unread: 1,
+        lastTime: '10:05 AM',
+        phone: '+91-98765-43210',
+        messages: [
+          {
+            id: 'rm4_1',
+            text: 'Keerat, look at this honeypot payload macro document we captured yesterday:',
+            time: '10:05 AM',
+            fromMe: false,
+            attachment: {
+              name: 'Campus_Honeypot_Payload.docm',
+              size: 9410,
+              type: 'application/vnd.ms-word.document.macroEnabled.12',
+              bytes: sampleDocmBytes,
+              isSuspicious: true,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_real_5',
+        name: 'Unknown Number (Forwarded Many Times)',
+        avatar: '⚠️',
+        unread: 1,
+        lastTime: '09:20 AM',
+        phone: '+91-99887-76655',
+        messages: [
+          {
+            id: 'rm5_1',
+            text: 'Urgent: Click here to install update for University ERP Portal app: urgent fix for campus wifi.',
+            time: '09:20 AM',
+            fromMe: false,
+            attachment: {
+              name: 'SRM_ERP_Update_v4.2.apk',
+              size: 14250,
+              type: 'application/vnd.android.package-archive',
+              bytes: sampleApkBytes,
+              isSuspicious: true,
+            },
+          },
+        ],
+      },
+    ],
     '+91-98110-24210': [
       {
-        id: 'chat_keerat_1',
+        id: 'chat_keerat_alt_1',
         name: 'Accounts & Examination Dept (SRM)',
         avatar: '🏛️',
         unread: 1,
@@ -109,7 +246,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
         ],
       },
       {
-        id: 'chat_keerat_2',
+        id: 'chat_keerat_alt_2',
         name: 'Papa (Home)',
         avatar: '👨',
         unread: 1,
@@ -132,7 +269,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
         ],
       },
       {
-        id: 'chat_keerat_3',
+        id: 'chat_keerat_alt_3',
         name: 'Major Project Group (DSAI)',
         avatar: '🎓',
         unread: 2,
@@ -151,42 +288,6 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
               bytes: sampleSnapPngBytes,
               isSuspicious: false,
               isImage: true,
-            },
-          },
-          {
-            id: 'km3_2',
-            text: 'Also check this research dataset sample for model training.',
-            time: '10:35 AM',
-            fromMe: false,
-            attachment: {
-              name: 'CyberDefense_Research_Reference.pdf',
-              size: 4820,
-              type: 'application/pdf',
-              bytes: sampleCleanBytes,
-              isSuspicious: false,
-            },
-          },
-        ],
-      },
-      {
-        id: 'chat_keerat_4',
-        name: 'Unknown Number (Forwarded)',
-        avatar: '⚠️',
-        unread: 1,
-        lastTime: '09:20 AM',
-        phone: '+91-99887-76655',
-        messages: [
-          {
-            id: 'km4_1',
-            text: 'Urgent: Install campus patch update for wifi access bypass.',
-            time: '09:20 AM',
-            fromMe: false,
-            attachment: {
-              name: 'SRM_ERP_Update_v4.2.apk',
-              size: 14250,
-              type: 'application/vnd.android.package-archive',
-              bytes: sampleApkBytes,
-              isSuspicious: true,
             },
           },
         ],
