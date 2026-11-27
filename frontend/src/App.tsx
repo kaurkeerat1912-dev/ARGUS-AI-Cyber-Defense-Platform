@@ -9,9 +9,12 @@ import { DefensiveSimulation } from './pages/DefensiveSimulation';
 import { MlEvaluation } from './pages/MlEvaluation';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { WhatsAppFloatingWidget } from './components/modals/WhatsAppFloatingWidget';
+import { WhatsAppWebSimulatorModal } from './components/modals/WhatsAppWebSimulatorModal';
 
 export function App() {
   const [activeTab, setActiveTab] = useState<string>('overview');
+  const [showWhatsAppSimulator, setShowWhatsAppSimulator] = useState<boolean>(false);
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(() => {
     return sessionStorage.getItem('argus_active_investigation_id');
   });
@@ -115,6 +118,26 @@ export function App() {
           )}
         </main>
       </div>
+
+      {/* Floating Draggable Pop Up for WhatsApp Web & PC App Drag-and-Drop */}
+      <WhatsAppFloatingWidget
+        onOpenDetails={(id) => {
+          handleSelectInvestigation(id);
+        }}
+        onOpenWhatsAppSimulator={() => setShowWhatsAppSimulator(true)}
+      />
+
+      {/* WhatsApp Web / Desktop Interactive Simulator Modal */}
+      <WhatsAppWebSimulatorModal
+        isOpen={showWhatsAppSimulator}
+        onClose={() => setShowWhatsAppSimulator(false)}
+        onDropSampleFile={(file) => {
+          // File dropped
+        }}
+        onTriggerFloatingWidget={() => {
+          // Triggers evaluation in floating widget
+        }}
+      />
     </div>
   );
 }
