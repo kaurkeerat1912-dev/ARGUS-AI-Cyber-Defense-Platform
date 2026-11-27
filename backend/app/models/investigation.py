@@ -45,6 +45,7 @@ class Investigation(Base):
     attack_graph = relationship("AttackGraph", back_populates="investigation", uselist=False, cascade="all, delete-orphan")
     report = relationship("ForensicReport", back_populates="investigation", uselist=False, cascade="all, delete-orphan")
     defensive_actions = relationship("DefensiveAction", back_populates="investigation", cascade="all, delete-orphan")
+    remediation_executions = relationship("RemediationExecution", back_populates="investigation", cascade="all, delete-orphan")
 
 
 class EvidenceItem(Base):
@@ -154,3 +155,38 @@ class DefensiveAction(Base):
     executed_at = Column(DateTime(timezone=True), nullable=True)
 
     investigation = relationship("Investigation", back_populates="defensive_actions")
+    executions = relationship("RemediationExecution", back_populates="action", cascade="all, delete-orphan")
+
+
+class RemediationExecution(Base):
+    __tablename__ = "remediation_executions"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    investigation_id = Column(String(36), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True)
+    action_id = Column(String(36), ForeignKey("defensive_actions.id", ondelete="CASCADE"), nullable=False, index=True)
+
+    action_title = Column(String(255), nullable=False)
+    action_category = Column(String(64), nullable=False)
+    target_file = Column(String(255), nullable=False)
+    target_identifier = Column(String(255), nullable=True)
+
+    status = Column(String(32), default="RUNNING", index=True)  # RUNNING, SUCCESS, FAILED, SIMULATED, BLOCKED
+    execution_type = Column(String(32), default="SANDBOX_ISOLATED")  # SANDBOX_ISOLATED, SIMULATED, HOST_CONTROLLED
+
+    detected_os = Column(String(64), nullable=False)
+    target_os = Column(String(64), nullable=False)
+
+    risk_score_before = Column(Float, nullable=False)
+    risk_score_after = Column(Float, nullable=False)
+    risk_reduction_achieved = Column(Float, default=0.0)
+
+    actions_performed = Column(Text, nullable=True)  # JSON list of micro-actions
+    execution_logs = Column(Text, nullable=False)  # Line-separated or JSON list of log strings
+    error_message = Column(Text, nullable=True)
+
+    started_at = Column(DateTime(timezone=True), default=get_utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    investigation = relationship("Investigation", back_populates="remediation_executions")
+    action = relationship("DefensiveAction", back_populates="executions")

@@ -63,3 +63,73 @@ class ExecuteAllResponse(BaseModel):
     overall_efficacy_percentage: float
     actions: List[DefensiveActionSchema]
     full_simulation_log: List[str]
+
+
+class RemediationDetailResponse(BaseModel):
+    action_id: str
+    investigation_id: str
+    threat_name: str
+    target_file: str
+    action_category: str
+    title: str
+    description: str
+    why_recommended: str
+    expected_risk_reduction: float
+    target: str
+    rule_syntax: str
+    status: str
+    detected_os: str
+    adapted_mechanism: str
+    os_rule_syntax: str
+    safe_verification_action: str
+    risk_score_before: float
+    risk_score_after: float
+    requires_confirmation: bool = True
+
+
+class RemediationExecutionRequest(BaseModel):
+    user_confirmed: bool = True
+    target_os: Optional[str] = None
+
+
+class RemediationExecutionResponse(BaseModel):
+    execution_id: str
+    investigation_id: str
+    action_id: str
+    remediation_name: str
+    target_file: str
+    status: str  # SUCCESS, FAILED, RUNNING, SIMULATED, BLOCKED
+    execution_type: str  # SANDBOX_ISOLATED, SIMULATED, HOST_CONTROLLED
+    detected_os: str
+    target_os: str
+    risk_score_before: float
+    risk_score_after: float
+    risk_reduction_achieved: float
+    actions_performed: List[str]
+    execution_logs: List[str]
+    error_message: Optional[str] = None
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+
+
+class RemediationHistoryItem(BaseModel):
+    id: str
+    investigation_id: str
+    action_id: str
+    action_title: str
+    action_category: str
+    target_file: str
+    status: str
+    execution_type: str
+    detected_os: str
+    risk_score_before: float
+    risk_score_after: float
+    risk_reduction_achieved: float
+    actions_performed: List[str]
+    execution_logs: List[str]
+    error_message: Optional[str] = None
+    started_at: datetime
+    completed_at: Optional[datetime] = None
+
+    model_config = ConfigDict(from_attributes=True)
+

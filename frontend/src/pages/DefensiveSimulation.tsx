@@ -67,6 +67,13 @@ export const DefensiveSimulation: React.FC<DefensiveSimulationProps> = ({
   const [showRulesModal, setShowRulesModal] = useState(false);
   const [activeRuleTab, setActiveRuleTab] = useState<'firewall' | 'yara' | 'powershell'>('firewall');
   const [inspectAction, setInspectAction] = useState<DefensiveAction | null>(null);
+  const [remediationDetails, setRemediationDetails] = useState<import('../types').RemediationDetail | null>(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+  const [executionResult, setExecutionResult] = useState<import('../types').RemediationExecutionResult | null>(null);
+  const [selectedTargetOs, setSelectedTargetOs] = useState<'macOS' | 'Linux' | 'Windows'>('macOS');
+  const [confirmedExecution, setConfirmedExecution] = useState(false);
+  const [remediationHistory, setRemediationHistory] = useState<import('../types').RemediationHistoryItem[]>([]);
+  const [showHistoryModal, setShowHistoryModal] = useState(false);
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
   // Load list of all investigations for switcher
@@ -258,67 +265,93 @@ export const DefensiveSimulation: React.FC<DefensiveSimulationProps> = ({
     setSelectedActionIds(new Set());
   };
 
-  const handleExecuteAction = async (action: DefensiveAction) => {
+  const handleOpenRemediationReview = async (action: DefensiveAction) => {
     if (!selectedId) return;
+    setInspectAction(action);
+    setConfirmedExecution(false);
+    setExecutionResult(null);
+    setLoadingDetails(true);
     try {
-      setExecutingActionId(action.id);
-      const res = await api.executeDefenseAction(selectedId, action.id);
-      setTerminalLogs((prev) => [...prev, ...res.simulation_log]);
-
-      if (plan) {
-        const updatedActions = plan.actions.map((a) =>
-          a.id === action.id ? res.action : a
-        );
-        const enforcedActions = updatedActions.filter((a) => a.status === 'VERIFIED_BLOCKED');
-        setPlan({
-          ...plan,
-          actions: updatedActions,
-          mitigated_risk_score: res.updated_mitigated_risk_score,
-          residual_risk_level: res.updated_residual_risk_level,
-          efficacy_percentage: res.efficacy_percentage,
-          enforced_actions: enforcedActions.length,
-        });
+      const details = await api.getRemediationDetails(selectedId, action.id);
+      setRemediationDetails(details);
+      if (details.detected_os === 'macOS' || details.detected_os === 'Windows' || details.detected_os === 'Linux') {
+        setSelectedTargetOs(details.detected_os as any);
       }
-    } catch {
-      setTerminalLogs((prev) => [
-        ...prev,
-        `[POLICY-INJECT] Simulating countermeasure: ${action.title}...`,
-        `[SANDBOX] Enforcing rule: ${action.rule_syntax.split('\n')[0]}`,
-        `[VERIFICATION] Virtual sandbox verification: Target blocked.`,
-        `[ARGUS-SOC] Posture updated: -${action.risk_reduction} risk points.`,
-      ]);
+    } catch (err) {
+      console.error('Failed to load remediation details:', err);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
+  const handleExecuteConfirmedRemediation = async () => {
+    if (!selectedId || !inspectAction) return;
+    try {
+      setExecutingActionId(inspectAction.id);
+      const res = await api.executeRemediation(selectedId, inspectAction.id, {
+        user_confirmed: true,
+        target_os: selectedTargetOs,
+      });
+      setExecutionResult(res);
+      setTerminalLogs((prev) => [...prev, ...res.execution_logs]);
+
+      // Update plan state with verified risk reduction
       if (plan) {
         const updatedActions = plan.actions.map((a) =>
-          a.id === action.id
+          a.id === inspectAction.id
             ? {
                 ...a,
-                status: 'VERIFIED_BLOCKED' as const,
-                executed_at: new Date().toISOString(),
-                simulated_output: `Simulated enforcement in virtual sandbox. Target: ${a.target}`,
+                status: res.status === 'SUCCESS' ? ('VERIFIED_BLOCKED' as const) : a.status,
+                executed_at: res.completed_at || new Date().toISOString(),
+                simulated_output: res.actions_performed.join('; '),
               }
             : a
         );
         const enforcedActions = updatedActions.filter((a) => a.status === 'VERIFIED_BLOCKED');
-        const totalMitigated = enforcedActions.reduce((sum, a) => sum + a.risk_reduction, 0);
-        const newScore = Math.max(0, Math.round((plan.initial_risk_score - totalMitigated) * 10) / 10);
-        const newLevel = newScore >= 85 ? 'CRITICAL' : newScore >= 60 ? 'HIGH' : newScore >= 30 ? 'MEDIUM' : 'LOW';
-        const efficacy =
-          plan.initial_risk_score > 0
-            ? Math.min(100, Math.max(0, Math.round(((plan.initial_risk_score - newScore) / plan.initial_risk_score) * 100)))
-            : 0;
         setPlan({
           ...plan,
           actions: updatedActions,
-          mitigated_risk_score: newScore,
-          residual_risk_level: newLevel as any,
-          efficacy_percentage: efficacy,
+          mitigated_risk_score: res.risk_score_after,
+          residual_risk_level:
+            res.risk_score_after >= 85
+              ? 'CRITICAL'
+              : res.risk_score_after >= 60
+              ? 'HIGH'
+              : res.risk_score_after >= 30
+              ? 'MEDIUM'
+              : 'LOW',
           enforced_actions: enforcedActions.length,
+          efficacy_percentage:
+            plan.initial_risk_score > 0
+              ? Math.round(((plan.initial_risk_score - res.risk_score_after) / plan.initial_risk_score) * 100)
+              : 100,
         });
       }
+
+      // Refresh remediation history
+      const hist = await api.getRemediationHistory(selectedId);
+      setRemediationHistory(hist);
+    } catch (err: any) {
+      console.error('Remediation execution error:', err);
+      setTerminalLogs((prev) => [...prev, `[ERROR] Execution failed: ${err.message || 'Sandbox error'}`]);
     } finally {
       setExecutingActionId(null);
     }
+  };
+
+  const fetchRemediationHistory = async () => {
+    if (!selectedId) return;
+    try {
+      const hist = await api.getRemediationHistory(selectedId);
+      setRemediationHistory(hist);
+      setShowHistoryModal(true);
+    } catch (err) {
+      console.error('Failed to fetch history:', err);
+    }
+  };
+
+  const handleExecuteAction = async (action: DefensiveAction) => {
+    await handleOpenRemediationReview(action);
   };
 
   const handleExecuteSelected = async () => {
@@ -719,6 +752,13 @@ export const DefensiveSimulation: React.FC<DefensiveSimulationProps> = ({
             </div>
 
             <div className="flex items-center gap-2">
+              <button
+                onClick={fetchRemediationHistory}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold cursor-pointer border border-indigo-200 shadow-xs transition-colors"
+              >
+                <Shield className="w-3.5 h-3.5 text-indigo-600" />
+                <span>Remediation History</span>
+              </button>
               <button
                 onClick={() => onNavigateToDetails(selectedId)}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer border border-slate-200 shadow-xs transition-colors"
@@ -1619,53 +1659,298 @@ export const DefensiveSimulation: React.FC<DefensiveSimulationProps> = ({
         </div>
       )}
 
-      {/* Action Inspection Modal Card */}
+      {/* Action Inspection & Remediation Execution Modal */}
       {inspectAction && (
-        <div className="fixed inset-0 z-50 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-white border border-slate-200 rounded-3xl max-w-lg w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-xl w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 my-8">
             <div className="flex items-start justify-between pb-3 border-b border-slate-100">
               <div>
-                <span className="text-[10px] font-mono uppercase font-bold text-indigo-700 tracking-wider">
-                  Remediation Action Detail
+                <span className="text-[10px] font-mono uppercase font-bold text-indigo-700 tracking-wider flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Execute Defensive Remediation (Host-Isolated Sandbox)</span>
                 </span>
                 <h3 className="text-base font-bold text-slate-900 mt-0.5">{inspectAction.title}</h3>
               </div>
               <button
-                onClick={() => setInspectAction(null)}
+                onClick={() => {
+                  setInspectAction(null);
+                  setExecutionResult(null);
+                  setRemediationDetails(null);
+                }}
                 className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <p className="text-xs text-slate-600 leading-relaxed">{inspectAction.description}</p>
-
-            <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs">
-              <span className="font-semibold text-indigo-900 block mb-1">Remediation Rationale:</span>
-              <span className="text-slate-700 leading-relaxed text-[11px]">{getActionSolutionRationale(inspectAction)}</span>
-            </div>
-
-            <div className="space-y-1.5">
-              <span className="text-[10px] text-slate-400 uppercase font-semibold">Enforcement Command:</span>
-              <pre className="p-3 rounded-xl bg-slate-50 border border-slate-200 font-mono text-[11px] text-slate-800 overflow-x-auto whitespace-pre-wrap">
-                {inspectAction.rule_syntax}
-              </pre>
-            </div>
-
-            <div className="grid grid-cols-2 gap-2 text-center text-xs font-mono pt-1">
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] text-slate-400 block font-sans">Target</span>
-                <span className="text-slate-800 font-medium truncate block">{inspectAction.target}</span>
+            {loadingDetails ? (
+              <div className="py-12 flex flex-col items-center justify-center gap-3">
+                <RefreshCw className="w-6 h-6 text-indigo-600 animate-spin" />
+                <span className="text-xs text-slate-500 font-medium">Inspecting host OS & synthesizing sandbox remediation...</span>
               </div>
-              <div className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] text-slate-400 block font-sans">Risk Mitigation</span>
-                <span className="text-emerald-700 font-bold block">-{inspectAction.risk_reduction} Points</span>
+            ) : executionResult ? (
+              /* REAL EXECUTION RESULTS VIEW */
+              <div className="space-y-4">
+                <div className={`p-4 rounded-2xl border ${
+                  executionResult.status === 'SUCCESS'
+                    ? 'bg-emerald-50/80 border-emerald-200 text-emerald-950'
+                    : executionResult.status === 'BLOCKED'
+                    ? 'bg-rose-50/80 border-rose-200 text-rose-950'
+                    : 'bg-amber-50/80 border-amber-200 text-amber-950'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold uppercase tracking-wider flex items-center gap-1.5">
+                      {executionResult.status === 'SUCCESS' ? (
+                        <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                      ) : (
+                        <AlertTriangle className="w-4 h-4 text-rose-600" />
+                      )}
+                      <span>Execution Status: {executionResult.status}</span>
+                    </span>
+                    <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-md bg-white/70 border border-current">
+                      {executionResult.execution_type}
+                    </span>
+                  </div>
+                  <div className="text-xs mt-2 font-mono text-slate-600">
+                    Execution ID: <span className="text-slate-900 font-bold select-all">{executionResult.execution_id}</span>
+                  </div>
+                </div>
+
+                {/* Score delta */}
+                <div className="grid grid-cols-3 gap-2 text-center text-xs">
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] text-slate-400 block font-sans">Initial Threat</span>
+                    <span className="text-slate-900 font-bold text-sm">{executionResult.risk_score_before}/100</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <span className="text-[10px] text-emerald-700 block font-sans">Reduction</span>
+                    <span className="text-emerald-700 font-bold text-sm">-{executionResult.risk_reduction_achieved} Pts</span>
+                  </div>
+                  <div className="p-3 rounded-xl bg-slate-50 border border-slate-200">
+                    <span className="text-[10px] text-slate-400 block font-sans">Residual Risk</span>
+                    <span className="text-slate-900 font-bold text-sm">{executionResult.risk_score_after}/100</span>
+                  </div>
+                </div>
+
+                {/* Actions Performed */}
+                {executionResult.actions_performed.length > 0 && (
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Actions Performed:</span>
+                    <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 space-y-1 text-xs text-slate-700">
+                      {executionResult.actions_performed.map((act, i) => (
+                        <div key={i} className="flex items-start gap-2">
+                          <Check className="w-3.5 h-3.5 text-emerald-600 shrink-0 mt-0.5" />
+                          <span>{act}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Execution Logs */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">Live Sandbox Execution Logs:</span>
+                  <pre className="p-3 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[11px] overflow-x-auto max-h-48 whitespace-pre-wrap leading-relaxed">
+                    {executionResult.execution_logs.join('\n')}
+                  </pre>
+                </div>
+
+                <div className="flex justify-end pt-2">
+                  <button
+                    onClick={() => {
+                      setInspectAction(null);
+                      setExecutionResult(null);
+                      setRemediationDetails(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold cursor-pointer hover:bg-slate-800"
+                  >
+                    Done & Close
+                  </button>
+                </div>
               </div>
+            ) : (
+              /* PRE-EXECUTION REVIEW & CONFIRMATION VIEW */
+              <div className="space-y-4">
+                {/* Threat and File Metadata Strip */}
+                <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 text-xs flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Target File:</span>
+                    <span className="font-bold text-slate-900">{plan.sample_name}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Category:</span>
+                    <span className="font-mono text-indigo-700 font-bold">{inspectAction.category}</span>
+                  </div>
+                  <div>
+                    <span className="text-slate-400 block text-[10px] uppercase font-bold">Expected Reduction:</span>
+                    <span className="font-bold text-emerald-700">-{inspectAction.risk_reduction} Pts</span>
+                  </div>
+                </div>
+
+                {/* Remediation Rationale / Why Recommended */}
+                <div className="p-3.5 rounded-2xl bg-indigo-50/70 border border-indigo-100 text-xs space-y-1">
+                  <span className="font-bold text-indigo-950 flex items-center gap-1.5 text-xs">
+                    <Sparkles className="w-3.5 h-3.5 text-indigo-600" />
+                    <span>Why this Remediation is Recommended:</span>
+                  </span>
+                  <p className="text-slate-700 text-[11px] leading-relaxed">
+                    {remediationDetails?.why_recommended || getActionSolutionRationale(inspectAction)}
+                  </p>
+                </div>
+
+                {/* OS Target Selector */}
+                <div className="space-y-1.5">
+                  <label className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Execution Profile & Host OS Adaptation:
+                  </label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {(['macOS', 'Linux', 'Windows'] as const).map((os) => (
+                      <button
+                        key={os}
+                        type="button"
+                        onClick={() => setSelectedTargetOs(os)}
+                        className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+                          selectedTargetOs === os
+                            ? 'bg-slate-900 text-white border-slate-900 shadow-xs'
+                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                        }`}
+                      >
+                        {os}
+                        {remediationDetails?.detected_os === os && (
+                          <span className="block text-[9px] font-normal opacity-80">(Detected Host)</span>
+                        )}
+                      </button>
+                    ))}
+                  </div>
+                  {remediationDetails?.adapted_mechanism && (
+                    <div className="text-[11px] text-slate-500 mt-1">
+                      Adapted Control: <span className="font-semibold text-slate-800">{remediationDetails.adapted_mechanism}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Proposed Sandbox Action */}
+                <div className="space-y-1">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">
+                    Proposed Defensive Command (Executed in Isolated Sandbox):
+                  </span>
+                  <pre className="p-3 rounded-xl bg-slate-950 text-indigo-300 font-mono text-[11px] overflow-x-auto whitespace-pre-wrap max-h-36">
+                    {remediationDetails?.os_rule_syntax || inspectAction.rule_syntax}
+                  </pre>
+                </div>
+
+                {/* Explicit User Confirmation Checkbox */}
+                <div className="p-3.5 rounded-2xl bg-amber-50/80 border border-amber-200 text-xs">
+                  <label className="flex items-start gap-2.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={confirmedExecution}
+                      onChange={(e) => setConfirmedExecution(e.target.checked)}
+                      className="mt-0.5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer"
+                    />
+                    <span className="text-slate-800 text-[11px] leading-relaxed">
+                      <strong>Explicit User Authorization:</strong> I have reviewed the proposed defensive action, target indicator, and expected risk reduction. Execute this countermeasure safely inside the host-isolated ARGUS virtual sandbox jail.
+                    </span>
+                  </label>
+                </div>
+
+                {/* Modal Footer Controls */}
+                <div className="flex items-center justify-between pt-2">
+                  <button
+                    onClick={() => {
+                      setInspectAction(null);
+                      setRemediationDetails(null);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleExecuteConfirmedRemediation}
+                    disabled={!confirmedExecution || executingActionId === inspectAction.id}
+                    className={`px-5 py-2.5 rounded-xl text-xs font-bold flex items-center gap-2 shadow-sm transition-all cursor-pointer ${
+                      confirmedExecution && executingActionId !== inspectAction.id
+                        ? 'bg-emerald-600 hover:bg-emerald-700 text-white hover:shadow-md'
+                        : 'bg-slate-200 text-slate-400 cursor-not-allowed'
+                    }`}
+                  >
+                    {executingActionId === inspectAction.id ? (
+                      <>
+                        <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                        <span>Executing in Sandbox...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Play className="w-3.5 h-3.5 fill-current" />
+                        <span>Execute Remediation</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Remediation Execution History Modal */}
+      {showHistoryModal && (
+        <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-sm flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white border border-slate-200 rounded-3xl max-w-2xl w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95 duration-200 my-8">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div>
+                <span className="text-[10px] font-mono uppercase font-bold text-indigo-700 tracking-wider flex items-center gap-1.5">
+                  <Activity className="w-3.5 h-3.5 text-indigo-600" />
+                  <span>Audited Remediation History (Neon Database)</span>
+                </span>
+                <h3 className="text-base font-bold text-slate-900 mt-0.5">Execution Audit Log for {plan.sample_name}</h3>
+              </div>
+              <button
+                onClick={() => setShowHistoryModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-700 cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
+
+            {remediationHistory.length === 0 ? (
+              <div className="py-12 text-center text-xs text-slate-400">
+                No remediation executions recorded yet for this investigation. Select an action and click Execute Remediation.
+              </div>
+            ) : (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto pr-1">
+                {remediationHistory.map((item) => (
+                  <div key={item.id} className="p-4 rounded-2xl border border-slate-200 bg-slate-50/50 space-y-2 text-xs">
+                    <div className="flex items-center justify-between">
+                      <div className="font-bold text-slate-900">{item.action_title}</div>
+                      <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full border ${
+                        item.status === 'SUCCESS'
+                          ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                          : 'bg-rose-50 text-rose-700 border-rose-200'
+                      }`}>
+                        {item.status} ({item.execution_type})
+                      </span>
+                    </div>
+                    <div className="text-[11px] text-slate-500 flex flex-wrap items-center gap-3">
+                      <span>OS: <strong>{item.detected_os}</strong></span>
+                      <span>Target: <strong className="font-mono">{item.target_file}</strong></span>
+                      <span>Risk: <strong>{item.risk_score_before} &rarr; {item.risk_score_after}</strong> (-{item.risk_reduction_achieved})</span>
+                      <span>Time: <strong>{new Date(item.started_at).toLocaleTimeString()}</strong></span>
+                    </div>
+                    {item.execution_logs && item.execution_logs.length > 0 && (
+                      <pre className="p-2.5 rounded-xl bg-slate-950 text-emerald-400 font-mono text-[10px] overflow-x-auto max-h-28 whitespace-pre-wrap">
+                        {item.execution_logs.slice(0, 4).join('\n')}
+                        {item.execution_logs.length > 4 && `\n... +${item.execution_logs.length - 4} more log lines`}
+                      </pre>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
 
             <div className="flex justify-end pt-2">
               <button
-                onClick={() => setInspectAction(null)}
+                onClick={() => setShowHistoryModal(false)}
                 className="px-4 py-2 rounded-xl bg-slate-900 text-white text-xs font-semibold cursor-pointer hover:bg-slate-800"
               >
                 Close

@@ -64,6 +64,8 @@ async def init_db() -> None:
                 ("forensic_reports", "created_at"),
                 ("defensive_actions", "created_at"),
                 ("defensive_actions", "executed_at"),
+                ("remediation_executions", "started_at"),
+                ("remediation_executions", "completed_at"),
             ]
             for table, col in columns_to_migrate:
                 try:

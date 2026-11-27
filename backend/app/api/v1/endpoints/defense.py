@@ -14,14 +14,20 @@ from backend.app.models.investigation import (
     EvidenceItem,
     BehavioralEvent,
     DefensiveAction,
+    RemediationExecution,
 )
 from backend.app.schemas.defense import (
     DefensiveActionSchema,
     DefensePlanResponse,
     ExecuteActionResponse,
     ExecuteAllResponse,
+    RemediationDetailResponse,
+    RemediationExecutionRequest,
+    RemediationExecutionResponse,
+    RemediationHistoryItem,
 )
 from backend.app.services.defense_simulation.engine import defense_simulation_engine
+from backend.app.services.defense_simulation.sandbox_remediation import sandbox_remediation_engine
 
 router = APIRouter()
 
@@ -307,3 +313,300 @@ async def reset_defense_simulation(
     await db.commit()
 
     return await get_or_create_defense_plan(investigation_id=investigation_id, db=db)
+
+
+# ==============================================================================
+# REMEDIATION ENGINE API ENDPOINTS (FULL EXECUTION, OS-AWARE, ISOLATED SANDBOX)
+# ==============================================================================
+
+@router.get("/remediation/{investigation_id}/{action_id}/details", response_model=RemediationDetailResponse)
+async def get_remediation_details(
+    investigation_id: str,
+    action_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Fetch comprehensive pre-execution remediation details for review before user confirmation.
+    Displays threat name, target file, why it is recommended, expected risk reduction,
+    host OS detection, and adapted defensive mechanism.
+    """
+    inv_res = await db.execute(select(Investigation).where(Investigation.id == investigation_id))
+    inv = inv_res.scalar_one_or_none()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+
+    act_res = await db.execute(
+        select(DefensiveAction).where(
+            DefensiveAction.id == action_id,
+            DefensiveAction.investigation_id == investigation_id
+        )
+    )
+    action = act_res.scalar_one_or_none()
+    if not action:
+        raise HTTPException(status_code=404, detail="Defensive action not found")
+
+    sys_context = sandbox_remediation_engine.get_system_context()
+    os_adaptation = sandbox_remediation_engine.get_os_adapted_remediation(
+        category=action.category,
+        target=action.target
+    )
+
+    why_recs = {
+        "NETWORK_CONTAINMENT": f"Cuts off command-and-control (C2) or exfiltration beaconing to {action.target}. Prevents stolen telemetry or reverse shell connections.",
+        "PROCESS_TERMINATION": f"Instantly terminates suspicious process tree '{action.target}' to prevent execution loop, in-memory evasion, or privilege escalation.",
+        "HOST_ISOLATION": f"Applies VFS permission lockdown (000) and immutable attribute to '{action.target}' to prevent re-execution or persistence.",
+        "SANDBOX_ISOLATION": f"Isolates suspicious file '{action.target}' within virtual micro-jail. Quarantines binary to protect host OS.",
+        "SIGNATURE_DEPLOYMENT": f"Generates dynamic AST byte signature for '{action.target}' to immunize local and fleet sensors against identical variants.",
+        "ACCESS_REVOCATION": f"Revokes compromised host credentials and closes target sockets associated with '{action.target}'.",
+    }
+    why_recommended = why_recs.get(
+        action.category,
+        f"Neutralizes threat vector identified during forensic triage of '{inv.original_name}'."
+    )
+
+    risk_before = inv.risk_score or 0.0
+    risk_after = max(0.0, round(risk_before - (action.risk_reduction or 0.0), 1))
+
+    return RemediationDetailResponse(
+        action_id=action.id,
+        investigation_id=inv.id,
+        threat_name=inv.original_name,
+        target_file=inv.original_name,
+        action_category=action.category,
+        title=action.title,
+        description=action.description,
+        why_recommended=why_recommended,
+        expected_risk_reduction=action.risk_reduction,
+        target=action.target,
+        rule_syntax=action.rule_syntax,
+        status=action.status,
+        detected_os=sys_context["host_os"],
+        adapted_mechanism=os_adaptation["mechanism"],
+        os_rule_syntax=os_adaptation["rule_syntax"],
+        safe_verification_action=os_adaptation["safe_verification_action"],
+        risk_score_before=risk_before,
+        risk_score_after=risk_after,
+        requires_confirmation=True,
+    )
+
+
+@router.post("/remediation/{investigation_id}/{action_id}/execute", response_model=RemediationExecutionResponse)
+async def execute_remediation_sandbox(
+    investigation_id: str,
+    action_id: str,
+    req: RemediationExecutionRequest,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Execute remediation inside the isolated sandbox environment after explicit user confirmation.
+    Logs every action, ensures zero host filesystem damage, and persists execution record.
+    """
+    if not req.user_confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Remediation execution aborted: User confirmation is strictly required."
+        )
+
+    inv_res = await db.execute(select(Investigation).where(Investigation.id == investigation_id))
+    inv = inv_res.scalar_one_or_none()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Investigation not found")
+
+    act_res = await db.execute(
+        select(DefensiveAction).where(
+            DefensiveAction.id == action_id,
+            DefensiveAction.investigation_id == investigation_id
+        )
+    )
+    action = act_res.scalar_one_or_none()
+    if not action:
+        raise HTTPException(status_code=404, detail="Defensive action not found")
+
+    initial_risk = inv.risk_score or 0.0
+
+    # Execute inside isolated sandbox jail
+    result = await sandbox_remediation_engine.execute_in_sandbox(
+        investigation_id=inv.id,
+        action_id=action.id,
+        action_title=action.title,
+        action_category=action.category,
+        target=action.target,
+        target_file=inv.original_name,
+        initial_risk=initial_risk,
+        risk_reduction=action.risk_reduction or 10.0,
+        rule_syntax=action.rule_syntax,
+        target_os=req.target_os
+    )
+
+    # Persist RemediationExecution Record in Neon DB
+    import json
+    actions_performed_json = json.dumps(result["actions_performed"])
+    execution_logs_text = "\n".join(result["execution_logs"])
+
+    execution_record = RemediationExecution(
+        id=result["execution_id"],
+        investigation_id=inv.id,
+        action_id=action.id,
+        action_title=action.title,
+        action_category=action.category,
+        target_file=inv.original_name,
+        target_identifier=action.target,
+        status=result["status"],
+        execution_type=result["execution_type"],
+        detected_os=result["detected_os"],
+        target_os=result["target_os"],
+        risk_score_before=result["risk_score_before"],
+        risk_score_after=result["risk_score_after"],
+        risk_reduction_achieved=result["risk_reduction_achieved"],
+        actions_performed=actions_performed_json,
+        execution_logs=execution_logs_text,
+        error_message=result.get("error_message"),
+        started_at=result["started_at"],
+        completed_at=result["completed_at"],
+    )
+    db.add(execution_record)
+
+    # If execution succeeded, update action status and recalculate investigation risk score
+    if result["status"] == "SUCCESS":
+        action.status = "VERIFIED_BLOCKED"
+        action.executed_at = result["completed_at"]
+        action.simulated_output = (
+            f"Successfully executed and verified in isolated sandbox ({result['detected_os']}). "
+            f"Target: {action.target}. Zero host impact."
+        )
+
+        # Update parent investigation residual risk score
+        inv.risk_score = result["risk_score_after"]
+        if inv.risk_score >= 85.0:
+            inv.risk_level = "CRITICAL"
+        elif inv.risk_score >= 60.0:
+            inv.risk_level = "HIGH"
+        elif inv.risk_score >= 30.0:
+            inv.risk_level = "MEDIUM"
+        else:
+            inv.risk_level = "LOW"
+
+    elif result["status"] == "BLOCKED":
+        action.status = "FAILED"
+        action.simulated_output = f"Execution blocked by safety policy: {result.get('error_message')}"
+
+    await db.commit()
+    await db.refresh(action)
+
+    return RemediationExecutionResponse(
+        execution_id=result["execution_id"],
+        investigation_id=inv.id,
+        action_id=action.id,
+        remediation_name=action.title,
+        target_file=inv.original_name,
+        status=result["status"],
+        execution_type=result["execution_type"],
+        detected_os=result["detected_os"],
+        target_os=result["target_os"],
+        risk_score_before=result["risk_score_before"],
+        risk_score_after=result["risk_score_after"],
+        risk_reduction_achieved=result["risk_reduction_achieved"],
+        actions_performed=result["actions_performed"],
+        execution_logs=result["execution_logs"],
+        error_message=result.get("error_message"),
+        started_at=result["started_at"],
+        completed_at=result["completed_at"],
+    )
+
+
+@router.get("/remediation/{investigation_id}/history", response_model=List[RemediationHistoryItem])
+async def get_remediation_history(
+    investigation_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Retrieve chronological history of all remediation executions for the investigation.
+    """
+    import json
+    query = (
+        select(RemediationExecution)
+        .where(RemediationExecution.investigation_id == investigation_id)
+        .order_by(RemediationExecution.started_at.desc())
+    )
+    res = await db.execute(query)
+    records = res.scalars().all()
+
+    items: List[RemediationHistoryItem] = []
+    for r in records:
+        actions_list = []
+        if r.actions_performed:
+            try:
+                actions_list = json.loads(r.actions_performed)
+            except Exception:
+                actions_list = [r.actions_performed]
+
+        logs_list = r.execution_logs.split("\n") if r.execution_logs else []
+
+        items.append(
+            RemediationHistoryItem(
+                id=r.id,
+                investigation_id=r.investigation_id,
+                action_id=r.action_id,
+                action_title=r.action_title,
+                action_category=r.action_category,
+                target_file=r.target_file,
+                status=r.status,
+                execution_type=r.execution_type,
+                detected_os=r.detected_os,
+                risk_score_before=r.risk_score_before,
+                risk_score_after=r.risk_score_after,
+                risk_reduction_achieved=r.risk_reduction_achieved,
+                actions_performed=actions_list,
+                execution_logs=logs_list,
+                error_message=r.error_message,
+                started_at=r.started_at,
+                completed_at=r.completed_at,
+            )
+        )
+    return items
+
+
+@router.get("/remediation/execution/{execution_id}", response_model=RemediationHistoryItem)
+async def get_remediation_execution_status(
+    execution_id: str,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Fetch status and execution logs for a specific remediation execution ID.
+    """
+    import json
+    query = select(RemediationExecution).where(RemediationExecution.id == execution_id)
+    res = await db.execute(query)
+    record = res.scalar_one_or_none()
+    if not record:
+        raise HTTPException(status_code=404, detail="Remediation execution record not found")
+
+    actions_list = []
+    if record.actions_performed:
+        try:
+            actions_list = json.loads(record.actions_performed)
+        except Exception:
+            actions_list = [record.actions_performed]
+
+    logs_list = record.execution_logs.split("\n") if record.execution_logs else []
+
+    return RemediationHistoryItem(
+        id=record.id,
+        investigation_id=record.investigation_id,
+        action_id=record.action_id,
+        action_title=record.action_title,
+        action_category=record.action_category,
+        target_file=record.target_file,
+        status=record.status,
+        execution_type=record.execution_type,
+        detected_os=record.detected_os,
+        risk_score_before=record.risk_score_before,
+        risk_score_after=record.risk_score_after,
+        risk_reduction_achieved=record.risk_reduction_achieved,
+        actions_performed=actions_list,
+        execution_logs=logs_list,
+        error_message=record.error_message,
+        started_at=record.started_at,
+        completed_at=record.completed_at,
+    )
+

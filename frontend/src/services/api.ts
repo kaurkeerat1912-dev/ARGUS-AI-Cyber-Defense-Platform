@@ -178,6 +178,42 @@ export const api = {
     return res.json();
   },
 
+  // Remediation Engine (OS-Aware Sandbox Execution & History)
+  async getRemediationDetails(investigationId: string, actionId: string): Promise<import('../types').RemediationDetail> {
+    const res = await fetch(buildUrl(`/defense/remediation/${investigationId}/${actionId}/details`));
+    if (!res.ok) throw new Error('Failed to fetch remediation details');
+    return res.json();
+  },
+
+  async executeRemediation(
+    investigationId: string,
+    actionId: string,
+    payload: { user_confirmed: boolean; target_os?: string } = { user_confirmed: true }
+  ): Promise<import('../types').RemediationExecutionResult> {
+    const res = await fetch(buildUrl(`/defense/remediation/${investigationId}/${actionId}/execute`), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Execution failed' }));
+      throw new Error(err.detail || 'Remediation execution failed');
+    }
+    return res.json();
+  },
+
+  async getRemediationHistory(investigationId: string): Promise<import('../types').RemediationHistoryItem[]> {
+    const res = await fetch(buildUrl(`/defense/remediation/${investigationId}/history`));
+    if (!res.ok) throw new Error('Failed to fetch remediation history');
+    return res.json();
+  },
+
+  async getRemediationExecutionStatus(executionId: string): Promise<import('../types').RemediationHistoryItem> {
+    const res = await fetch(buildUrl(`/defense/remediation/execution/${executionId}`));
+    if (!res.ok) throw new Error('Failed to fetch execution status');
+    return res.json();
+  },
+
   // Email Extraction & Direct Ingestion (No local download needed)
   async extractAndAutoAnalyzeEmail(file: File): Promise<{
     status: string;

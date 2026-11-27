@@ -307,3 +307,66 @@ export interface GmailInboxResponse {
   total_messages: number;
   messages: GmailMessage[];
 }
+
+export interface RemediationDetail {
+  action_id: string;
+  investigation_id: string;
+  threat_name: string;
+  target_file: string;
+  action_category: string;
+  title: string;
+  description: string;
+  why_recommended: string;
+  expected_risk_reduction: number;
+  target: string;
+  rule_syntax: string;
+  status: string;
+  detected_os: string;
+  adapted_mechanism: string;
+  os_rule_syntax: string;
+  safe_verification_action: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  requires_confirmation: boolean;
+}
+
+export interface RemediationExecutionResult {
+  execution_id: string;
+  investigation_id: string;
+  action_id: string;
+  remediation_name: string;
+  target_file: string;
+  status: 'SUCCESS' | 'FAILED' | 'RUNNING' | 'SIMULATED' | 'BLOCKED';
+  execution_type: 'SANDBOX_ISOLATED' | 'SIMULATED' | 'HOST_CONTROLLED';
+  detected_os: string;
+  target_os: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  risk_reduction_achieved: number;
+  actions_performed: string[];
+  execution_logs: string[];
+  error_message?: string | null;
+  started_at: string;
+  completed_at?: string | null;
+}
+
+export interface RemediationHistoryItem {
+  id: string;
+  investigation_id: string;
+  action_id: string;
+  action_title: string;
+  action_category: string;
+  target_file: string;
+  status: string;
+  execution_type: string;
+  detected_os: string;
+  risk_score_before: number;
+  risk_score_after: number;
+  risk_reduction_achieved: number;
+  actions_performed: string[];
+  execution_logs: string[];
+  error_message?: string | null;
+  started_at: string;
+  completed_at?: string | null;
+}
+
