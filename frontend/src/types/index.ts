@@ -238,3 +238,37 @@ export interface ExecuteAllResponse {
   actions: DefensiveAction[];
   full_simulation_log: string[];
 }
+
+export interface EmailAttachment {
+  id: string;
+  filename: string;
+  size_bytes: number;
+  content_type: string;
+  sha256: string;
+  md5: string;
+  is_suspicious: boolean;
+  data_base64: string;
+}
+
+export interface EmailSuspiciousUrl {
+  url: string;
+  is_suspicious: boolean;
+}
+
+export interface EmailExtractionResult {
+  email_format: string;
+  original_name: string;
+  subject: string;
+  sender: string;
+  recipient: string;
+  date: string;
+  message_id?: string;
+  return_path?: string;
+  originating_ip?: string | null;
+  spf_status: string;
+  dkim_status: string;
+  body_snippet: string;
+  attachment_count: number;
+  attachments: EmailAttachment[];
+  embedded_urls: EmailSuspiciousUrl[];
+}

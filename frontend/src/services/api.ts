@@ -10,6 +10,8 @@ import {
   DefensePlan,
   ExecuteActionResponse,
   ExecuteAllResponse,
+  EmailExtractionResult,
+  EmailAttachment,
 } from '../types';
 
 const getApiBase = (): string => {
@@ -171,6 +173,49 @@ export const api = {
       method: 'POST',
     });
     if (!res.ok) throw new Error('Failed to reset defense simulation');
+    return res.json();
+  },
+
+  // Email Extraction & Direct Ingestion (No local download needed)
+  async extractEmail(fileOrData: File | { raw_email?: string; email_url?: string }): Promise<EmailExtractionResult> {
+    let res: Response;
+    if (fileOrData instanceof File) {
+      const formData = new FormData();
+      formData.append('file', fileOrData);
+      res = await fetch(buildUrl('/email/extract'), {
+        method: 'POST',
+        body: formData,
+      });
+    } else {
+      res = await fetch(buildUrl('/email/extract'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(fileOrData),
+      });
+    }
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Email attachment extraction failed' }));
+      throw new Error(err.detail || 'Email attachment extraction failed');
+    }
+    return res.json();
+  },
+
+  async analyzeEmailAttachment(attachment: { filename: string; data_base64: string; content_type?: string }): Promise<InvestigationSummary> {
+    const res = await fetch(buildUrl('/email/analyze-attachment'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(attachment),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Direct attachment analysis failed' }));
+      throw new Error(err.detail || 'Direct attachment analysis failed');
+    }
+    return res.json();
+  },
+
+  async getDemoEmailSample(): Promise<{ filename: string; raw_eml: string }> {
+    const res = await fetch(buildUrl('/email/demo-sample'));
+    if (!res.ok) throw new Error('Failed to fetch demo email sample');
     return res.json();
   },
 
