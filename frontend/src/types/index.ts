@@ -350,6 +350,98 @@ export interface RemediationExecutionResult {
   completed_at?: string | null;
 }
 
+export interface BatchScanItem {
+  id: string;
+  batch_scan_id: string;
+  investigation_id?: string | null;
+  filename: string;
+  file_size_bytes: number;
+  sha256?: string | null;
+  status: string;
+  risk_score_initial: number;
+  risk_score_residual: number;
+  risk_level: string;
+  remediation_status: string;
+  threat_category?: string | null;
+  countermeasure_title?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface SecurityEventTimelineItem {
+  timestamp: string;
+  stage: string;
+  description: string;
+  status: string;
+  metadata?: Record<string, any>;
+}
+
+export interface BatchSecurityReport {
+  batch_scan_id: string;
+  title: string;
+  files_analysed: number;
+  threats_detected: number;
+  critical_threats: number;
+  threats_contained: number;
+  threats_requiring_manual_review: number;
+  remediations_executed: number;
+  initial_aggregate_risk: number;
+  residual_aggregate_risk: number;
+  verified_risk_reduction: number;
+  mitigation_efficacy_pct: number;
+  overall_posture: string;
+  severity_distribution: Record<string, number>;
+  attack_paths_count: number;
+  recommended_actions: string[];
+  items: BatchScanItem[];
+  timeline: SecurityEventTimelineItem[];
+  generated_at: string;
+}
+
+export interface AutonomousDefenseOverview {
+  overall_security_status: string;
+  total_files_analysed: number;
+  threats_detected: number;
+  critical_threats: number;
+  threats_contained: number;
+  threats_requiring_manual_review: number;
+  active_investigations: number;
+  verified_remediations_count: number;
+  overall_initial_risk: number;
+  overall_current_risk: number;
+  overall_risk_reduction_pct: number;
+  risk_trend: Array<{ period: string; score: number }>;
+  live_timeline: SecurityEventTimelineItem[];
+  recent_batches: Array<any>;
+}
+
+export interface AttackMapNode {
+  id: string;
+  label: string;
+  type: 'ASSET' | 'FILE' | 'THREAT' | 'PROCESS' | 'DOMAIN' | 'MITIGATION';
+  status: 'ACTIVE' | 'CONTAINED' | 'BLOCKED' | 'SAFE';
+  risk_level: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AttackMapEdge {
+  source: string;
+  target: string;
+  label: string;
+  status: 'ACTIVE' | 'SEVERED' | 'CONTAINED';
+}
+
+export interface LiveAttackMapData {
+  batch_id?: string | null;
+  nodes: AttackMapNode[];
+  edges: AttackMapEdge[];
+  active_threats_count: number;
+  contained_threats_count: number;
+  total_assets_count: number;
+  posture_status: string;
+}
+
+
 export interface RemediationHistoryItem {
   id: string;
   investigation_id: string;
@@ -369,4 +461,96 @@ export interface RemediationHistoryItem {
   started_at: string;
   completed_at?: string | null;
 }
+
+export interface BatchScanItem {
+  id: string;
+  batch_scan_id: string;
+  investigation_id?: string | null;
+  filename: string;
+  file_size_bytes: number;
+  sha256?: string | null;
+  status: string;
+  risk_score_initial: number;
+  risk_score_residual: number;
+  risk_level: string;
+  remediation_status: string;
+  threat_category?: string | null;
+  countermeasure_title?: string | null;
+  created_at: string;
+  completed_at?: string | null;
+}
+
+export interface SecurityEventTimelineItem {
+  timestamp: string;
+  stage: string;
+  description: string;
+  status: string;
+  metadata?: Record<string, any>;
+}
+
+export interface BatchSecurityReport {
+  batch_scan_id: string;
+  title: string;
+  files_analysed: number;
+  threats_detected: number;
+  critical_threats: number;
+  threats_contained: number;
+  threats_requiring_manual_review: number;
+  remediations_executed: number;
+  initial_aggregate_risk: number;
+  residual_aggregate_risk: number;
+  verified_risk_reduction: number;
+  mitigation_efficacy_pct: number;
+  overall_posture: string;
+  severity_distribution: Record<string, number>;
+  attack_paths_count: number;
+  recommended_actions: string[];
+  items: BatchScanItem[];
+  timeline: SecurityEventTimelineItem[];
+  generated_at: string;
+}
+
+export interface AutonomousDefenseOverview {
+  overall_security_status: string;
+  total_files_analysed: number;
+  threats_detected: number;
+  critical_threats: number;
+  threats_contained: number;
+  threats_requiring_manual_review: number;
+  active_investigations: number;
+  verified_remediations_count: number;
+  overall_initial_risk: number;
+  overall_current_risk: number;
+  overall_risk_reduction_pct: number;
+  risk_trend: Array<{ period: string; score: number }>;
+  live_timeline: SecurityEventTimelineItem[];
+  recent_batches: Array<any>;
+}
+
+export interface AttackMapNode {
+  id: string;
+  label: string;
+  type: 'ASSET' | 'FILE' | 'THREAT' | 'PROCESS' | 'DOMAIN' | 'MITIGATION';
+  status: 'ACTIVE' | 'CONTAINED' | 'BLOCKED' | 'SAFE';
+  risk_level: string;
+  metadata?: Record<string, any>;
+}
+
+export interface AttackMapEdge {
+  source: string;
+  target: string;
+  label: string;
+  status: 'ACTIVE' | 'SEVERED' | 'CONTAINED';
+}
+
+export interface LiveAttackMapData {
+  batch_id?: string | null;
+  nodes: AttackMapNode[];
+  edges: AttackMapEdge[];
+  active_threats_count: number;
+  contained_threats_count: number;
+  total_assets_count: number;
+  posture_status: string;
+}
+
 

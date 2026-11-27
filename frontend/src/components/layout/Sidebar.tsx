@@ -24,8 +24,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   activeInvestigationId,
 }) => {
   const navItems = [
-    { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-600' },
-    { id: 'investigate', label: 'Scan & Email Forensics', icon: SearchCheck, color: 'text-indigo-600', badge: 'Email' },
+    { id: 'overview', label: 'Autonomous Defense', icon: ShieldAlert, color: 'text-indigo-600', badge: 'ARGUS 2.0' },
+    { id: 'investigate', label: 'Scan & Email Forensics', icon: SearchCheck, color: 'text-blue-600', badge: 'Batch' },
     {
       id: 'details',
       label: 'Evidence Findings',
@@ -33,8 +33,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       color: 'text-violet-600',
       badge: activeInvestigationId ? 'Loaded' : undefined,
     },
-    { id: 'graph', label: 'Attack Map (Graph)', icon: Network, color: 'text-teal-600' },
-    { id: 'defense', label: 'Defensive Solutions', icon: Shield, color: 'text-emerald-600' },
+    { id: 'graph', label: 'Live Attack Map', icon: Network, color: 'text-teal-600' },
+    { id: 'defense', label: 'Remediation Solutions', icon: Shield, color: 'text-emerald-600' },
     { id: 'ml-eval', label: 'AI Accuracy & Metrics', icon: Cpu, color: 'text-amber-600' },
     { id: 'reports', label: 'PDF Reports', icon: FileCheck2, color: 'text-rose-600' },
     { id: 'settings', label: 'System Health', icon: Settings, color: 'text-slate-600' },

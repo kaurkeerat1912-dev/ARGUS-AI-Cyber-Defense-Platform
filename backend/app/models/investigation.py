@@ -46,6 +46,7 @@ class Investigation(Base):
     report = relationship("ForensicReport", back_populates="investigation", uselist=False, cascade="all, delete-orphan")
     defensive_actions = relationship("DefensiveAction", back_populates="investigation", cascade="all, delete-orphan")
     remediation_executions = relationship("RemediationExecution", back_populates="investigation", cascade="all, delete-orphan")
+    batch_scan_item = relationship("BatchScanItem", back_populates="investigation", uselist=False)
 
 
 class EvidenceItem(Base):
@@ -190,3 +191,57 @@ class RemediationExecution(Base):
     # Relationships
     investigation = relationship("Investigation", back_populates="remediation_executions")
     action = relationship("DefensiveAction", back_populates="executions")
+
+
+class BatchScan(Base):
+    __tablename__ = "batch_scans"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    title = Column(String(255), nullable=False)
+    status = Column(String(32), default="PROCESSING", index=True)  # PROCESSING, COMPLETED, FAILED, PARTIAL
+    total_files = Column(Integer, default=0)
+    threats_detected = Column(Integer, default=0)
+    critical_threats = Column(Integer, default=0)
+    threats_contained = Column(Integer, default=0)
+    remediations_executed = Column(Integer, default=0)
+
+    initial_aggregate_risk = Column(Float, default=0.0)
+    residual_aggregate_risk = Column(Float, default=0.0)
+    mitigation_efficacy_pct = Column(Float, default=0.0)
+
+    executive_summary = Column(Text, nullable=True)
+    report_json = Column(Text, nullable=True)  # Comprehensive aggregated security report
+    event_timeline_json = Column(Text, nullable=True)  # Chronological security events
+
+    created_at = Column(DateTime(timezone=True), default=get_utc_now, index=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    items = relationship("BatchScanItem", back_populates="batch_scan", cascade="all, delete-orphan")
+
+
+class BatchScanItem(Base):
+    __tablename__ = "batch_scan_items"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    batch_scan_id = Column(String(36), ForeignKey("batch_scans.id", ondelete="CASCADE"), nullable=False, index=True)
+    investigation_id = Column(String(36), ForeignKey("investigations.id", ondelete="SET NULL"), nullable=True, index=True)
+
+    filename = Column(String(255), nullable=False)
+    file_size_bytes = Column(Integer, default=0)
+    sha256 = Column(String(64), nullable=True)
+    status = Column(String(32), default="PENDING")  # PENDING, SCANNED, REMEDIATED, SAFE, FAILED
+    risk_score_initial = Column(Float, default=0.0)
+    risk_score_residual = Column(Float, default=0.0)
+    risk_level = Column(String(16), default="LOW")
+    remediation_status = Column(String(32), default="NONE")  # NONE, PROPOSED, EXECUTED, BLOCKED
+    threat_category = Column(String(64), nullable=True)
+    countermeasure_title = Column(String(255), nullable=True)
+
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Relationships
+    batch_scan = relationship("BatchScan", back_populates="items")
+    investigation = relationship("Investigation", back_populates="batch_scan_item")
+

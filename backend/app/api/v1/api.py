@@ -3,9 +3,11 @@ API V1 Main Router Aggregation
 """
 
 from fastapi import APIRouter
-from backend.app.api.v1.endpoints import files, investigations, metrics, telemetry, health, defense, email
+from backend.app.api.v1.endpoints import files, investigations, metrics, telemetry, health, defense, email, autonomous
 
 api_router = APIRouter()
+
+api_router.include_router(autonomous.router, prefix="/autonomous", tags=["Autonomous Defense Engine"])
 
 api_router.include_router(files.router, prefix="/files", tags=["File Ingestion & Analysis"])
 api_router.include_router(email.router, prefix="/email", tags=["Email Attachment Extraction"])

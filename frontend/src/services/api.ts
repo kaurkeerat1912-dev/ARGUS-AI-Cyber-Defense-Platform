@@ -214,6 +214,46 @@ export const api = {
     return res.json();
   },
 
+  // ARGUS 2.0 Autonomous Defense Engine & Batch Scanning
+  async batchScanAndAutoDefend(
+    files: File[],
+    autoRemediate: boolean = true,
+    targetOs?: string
+  ): Promise<import('../types').BatchSecurityReport> {
+    const formData = new FormData();
+    files.forEach((file) => formData.append('files', file));
+    formData.append('auto_remediate', String(autoRemediate));
+    if (targetOs) formData.append('target_os', targetOs);
+
+    const res = await fetch(buildUrl('/autonomous/batch-scan'), {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Batch autonomous defense failed' }));
+      throw new Error(err.detail || 'Batch autonomous defense failed');
+    }
+    return res.json();
+  },
+
+  async getAutonomousOverview(): Promise<import('../types').AutonomousDefenseOverview> {
+    const res = await fetch(buildUrl('/autonomous/overview'));
+    if (!res.ok) throw new Error('Failed to fetch autonomous defense overview');
+    return res.json();
+  },
+
+  async getLiveAttackMap(batchId?: string): Promise<import('../types').LiveAttackMapData> {
+    const res = await fetch(buildUrl('/autonomous/attack-map', { batch_id: batchId }));
+    if (!res.ok) throw new Error('Failed to fetch live attack map');
+    return res.json();
+  },
+
+  async getBatchScanReport(batchId: string): Promise<import('../types').BatchSecurityReport> {
+    const res = await fetch(buildUrl(`/autonomous/batch/${batchId}`));
+    if (!res.ok) throw new Error('Failed to fetch batch scan report');
+    return res.json();
+  },
+
   // Email Extraction & Direct Ingestion (No local download needed)
   async extractAndAutoAnalyzeEmail(file: File): Promise<{
     status: string;
