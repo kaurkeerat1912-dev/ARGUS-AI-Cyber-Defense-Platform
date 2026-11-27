@@ -33,7 +33,21 @@ class MLEngine:
         self.if_model: Optional[IsolationForest] = None
         self.scaler: Optional[StandardScaler] = None
         self.metrics: Optional[Dict[str, Any]] = None
+        self._is_loaded: bool = False
+        # In production (Render free tier), we avoid loading heavy model binaries into RAM at startup.
+        # Models and metrics are lazy-loaded upon first prediction or evaluation request.
+
+    @property
+    def is_ready(self) -> bool:
+        """Returns True if models are loaded or artifacts exist on disk."""
+        return self._is_loaded or settings.RANDOM_FOREST_MODEL.exists()
+
+    def ensure_loaded(self):
+        """Lazy-loads persisted models on demand, saving ~150-200MB RAM during application boot."""
+        if self._is_loaded and self.rf_model is not None and self.scaler is not None:
+            return
         self._load_or_train_models()
+        self._is_loaded = True
 
     def _load_or_train_models(self):
         """Load persisted models from disk or trigger initial training."""
@@ -49,12 +63,14 @@ class MLEngine:
                 self.scaler = joblib.load(settings.FEATURE_SCALER)
                 with open(settings.METRICS_FILE, "r") as f:
                     self.metrics = json.load(f)
+                self._is_loaded = True
                 return
             except Exception as e:
                 print(f"[ML Engine] Failed loading persisted models: {e}. Retraining...")
 
         # If not present or corrupt, train baseline models
         self.train_and_evaluate(is_synthetic=True)
+        self._is_loaded = True
 
     def generate_benchmark_dataset(self, n_samples: int = 1200) -> Tuple[pd.DataFrame, pd.Series]:
         """
@@ -216,8 +232,7 @@ class MLEngine:
         """
         Run transparent inference given extracted file features.
         """
-        if not self.rf_model or not self.scaler:
-            self._load_or_train_models()
+        self.ensure_loaded()
 
         df_in = feature_extractor.to_df(feature_dict)
         vec_scaled = self.scaler.transform(df_in)

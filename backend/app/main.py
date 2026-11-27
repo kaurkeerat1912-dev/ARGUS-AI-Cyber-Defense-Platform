@@ -25,11 +25,8 @@ async def lifespan(app: FastAPI):
     # Initialize SQLite / PostgreSQL tables
     await init_db()
     print("[*] Database tables initialized successfully.")
-    # Verify or train initial ML models
-    if ml_engine.rf_model is None:
-        print("[*] Training initial benchmark models...")
-        ml_engine.train_and_evaluate(is_synthetic=True)
-    print("[*] Forensics and ML engines ready.")
+    # In production, ML models are lazy-loaded on first inference request to save RAM on Render free tier (512MB limit)
+    print("[*] Forensics engine ready (ML models configured for lazy-loading on demand).")
     yield
     print("[*] Shutting down application gracefully.")
 

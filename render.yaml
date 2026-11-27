@@ -3,7 +3,7 @@ services:
     name: argus-backend
     runtime: python
     buildCommand: "pip install -r backend/requirements.txt"
-    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 2"
+    startCommand: "uvicorn backend.app.main:app --host 0.0.0.0 --port $PORT --workers 1"
     plan: free
     region: oregon
     envVars:

@@ -52,7 +52,7 @@ async def get_overview_metrics(db: AsyncSession = Depends(get_db)):
         "status": "OPERATIONAL",
         "database": "CONNECTED",
         "yara_rules": settings.YARA_RULES_PATH.exists(),
-        "ml_engine": ml_engine.rf_model is not None,
+        "ml_engine": ml_engine.is_ready,
         "ollama_enabled": settings.OLLAMA_ENABLED,
         "environment": "macOS Apple Silicon (M4 ARM64)"
     }
@@ -74,10 +74,15 @@ async def get_overview_metrics(db: AsyncSession = Depends(get_db)):
 @router.get("/evaluation", response_model=ModelEvaluationSchema)
 async def get_model_evaluation():
     """Retrieve benchmark validation metrics, confusion matrix, and feature importances."""
-    metrics = ml_engine.metrics
-    if not metrics:
-        metrics = ml_engine.train_and_evaluate()
-    return metrics
+    if not ml_engine.metrics:
+        # Check if saved file exists on disk to avoid re-training or loading full binaries
+        if settings.METRICS_FILE.exists():
+            import json
+            with open(settings.METRICS_FILE, "r") as f:
+                ml_engine.metrics = json.load(f)
+        else:
+            ml_engine.ensure_loaded()
+    return ml_engine.metrics
 
 
 @router.post("/retrain", response_model=ModelEvaluationSchema)
