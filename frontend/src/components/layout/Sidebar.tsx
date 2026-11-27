@@ -9,7 +9,7 @@ import {
   Settings,
   Shield,
   ShieldAlert,
-  MessageSquare,
+  Mail,
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -25,8 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-600' },
-    { id: 'whatsapp-web', label: 'WhatsApp Web Interceptor', icon: MessageSquare, color: 'text-emerald-600', badge: 'Live' },
-    { id: 'investigate', label: 'Scan a File', icon: SearchCheck, color: 'text-indigo-600' },
+    { id: 'investigate', label: 'Scan & Email Forensics', icon: SearchCheck, color: 'text-indigo-600', badge: 'Gmail' },
     {
       id: 'details',
       label: 'Evidence Findings',

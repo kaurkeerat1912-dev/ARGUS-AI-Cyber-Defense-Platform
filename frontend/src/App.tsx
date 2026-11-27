@@ -9,17 +9,12 @@ import { DefensiveSimulation } from './pages/DefensiveSimulation';
 import { MlEvaluation } from './pages/MlEvaluation';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
-import { WhatsAppWebPage } from './pages/WhatsAppWebPage';
-import { WhatsAppFloatingWidget } from './components/modals/WhatsAppFloatingWidget';
-import { WhatsAppWebSimulatorModal } from './components/modals/WhatsAppWebSimulatorModal';
 
 export function App() {
-  // Support deep-linking from WhatsApp Web Chrome extension: e.g. http://localhost:5173/?tab=details&id=...
   const [activeTab, setActiveTab] = useState<string>(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('tab') || 'overview';
   });
-  const [showWhatsAppSimulator, setShowWhatsAppSimulator] = useState<boolean>(false);
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(() => {
     const params = new URLSearchParams(window.location.search);
     const urlId = params.get('id');
@@ -79,14 +74,6 @@ export function App() {
             />
           )}
 
-          {activeTab === 'whatsapp-web' && (
-            <WhatsAppWebPage
-              onOpenDetails={handleSelectInvestigation}
-              onOpenGraph={handleNavigateToGraph}
-              onOpenDefense={handleNavigateToDefense}
-            />
-          )}
-
           {activeTab === 'investigate' && (
             <Investigate
               onInvestigationComplete={(id) => {
@@ -137,26 +124,6 @@ export function App() {
           )}
         </main>
       </div>
-
-      {/* Floating Draggable Pop Up for WhatsApp Web & PC App Drag-and-Drop */}
-      <WhatsAppFloatingWidget
-        onOpenDetails={(id) => {
-          handleSelectInvestigation(id);
-        }}
-        onOpenWhatsAppSimulator={() => setShowWhatsAppSimulator(true)}
-      />
-
-      {/* WhatsApp Web / Desktop Interactive Simulator Modal */}
-      <WhatsAppWebSimulatorModal
-        isOpen={showWhatsAppSimulator}
-        onClose={() => setShowWhatsAppSimulator(false)}
-        onDropSampleFile={(file) => {
-          // File dropped
-        }}
-        onTriggerFloatingWidget={() => {
-          // Triggers evaluation in floating widget
-        }}
-      />
     </div>
   );
 }

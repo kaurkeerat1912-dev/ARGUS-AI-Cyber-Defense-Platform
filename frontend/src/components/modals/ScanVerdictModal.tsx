@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -11,14 +11,11 @@ import {
   Ban,
   CheckCircle,
   Lock,
-  Share2,
   FolderLock,
   HardDrive,
   ExternalLink,
-  MessageSquare,
 } from 'lucide-react';
 import { InvestigationSummary, EvidenceItem } from '../../types';
-import { api } from '../../services/api';
 
 interface ScanVerdictModalProps {
   isOpen: boolean;
@@ -39,9 +36,6 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
   onNavigateToDefense,
   onAllowExecution,
 }) => {
-  const [waSending, setWaSending] = useState(false);
-  const [waSent, setWaSent] = useState(false);
-
   if (!isOpen || !verdict) return null;
 
   const triage = verdict.triage_verdict;
@@ -57,29 +51,6 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
   );
 
   const quarantineLocation = triage?.quarantine_path || `data/quarantine/${verdict.id}${verdict.original_name.includes('.') ? '.' + verdict.original_name.split('.').pop() : ''}`;
-
-  const handleShareWhatsAppAlert = async () => {
-    try {
-      setWaSending(true);
-      const res = await api.sendWhatsAppAlert({
-        investigation_id: verdict.id,
-        filename: verdict.original_name,
-        risk_score: verdict.risk_score,
-        risk_level: verdict.risk_level,
-        action_taken: 'EXECUTION_BLOCKED_AND_ISOLATED',
-        quarantine_path: quarantineLocation,
-        threat_summary: verdict.summary || `${problemEvidence.length} exploit vectors and high-risk anomalies detected.`,
-      });
-
-      setWaSent(true);
-      // Open WhatsApp web / mobile directly in new tab
-      window.open(res.whatsapp_url, '_blank', 'noopener,noreferrer');
-    } catch (err) {
-      console.error('Failed to trigger WhatsApp alert:', err);
-    } finally {
-      setWaSending(false);
-    }
-  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -247,32 +218,7 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
               </p>
             </div>
 
-            {/* WhatsApp SOC Alert Integration */}
-            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
-                  <MessageSquare className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
-                    <span>Instant WhatsApp Security Alert</span>
-                    <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Live SOC</span>
-                  </div>
-                  <p className="text-[11px] text-slate-600">
-                    Send threat report, file hashes & block details directly to your WhatsApp
-                  </p>
-                </div>
-              </div>
 
-              <button
-                onClick={handleShareWhatsAppAlert}
-                disabled={waSending}
-                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 shrink-0 active:scale-95"
-              >
-                <Share2 className="w-3.5 h-3.5" />
-                <span>{waSent ? 'Sent to WhatsApp ✓' : 'Send Alert on WhatsApp'}</span>
-              </button>
-            </div>
 
             {/* Detailed Problems Found in the file */}
             <div className="space-y-2.5">

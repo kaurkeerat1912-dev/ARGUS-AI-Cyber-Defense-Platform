@@ -105,15 +105,4 @@ async def test_end_to_end_file_forensic_pipeline():
         assert sim_data["status"] == "SUCCESS"
         assert sim_data["imported_events_count"] > 0
 
-        # Test WhatsApp Security Alert Dispatcher
-        wa_res = await client.post("/api/v1/whatsapp/send-alert", json={
-            "investigation_id": inv_id,
-            "filename": "suspicious_eval_script.ps1",
-            "risk_score": 85.0,
-            "risk_level": "CRITICAL",
-            "threat_summary": "Malicious PowerShell cradle with network connection"
-        })
-        assert wa_res.status_code == 200
-        wa_data = wa_res.json()
-        assert "whatsapp_url" in wa_data
-        assert "ARGUS CYBER DEFENSE" in wa_data["message_body"]
+
