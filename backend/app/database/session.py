@@ -14,8 +14,10 @@ connect_args = {}
 if "sqlite" in settings.DATABASE_URL:
     connect_args["check_same_thread"] = False
 elif "postgresql+asyncpg" in settings.DATABASE_URL:
-    # Neon Serverless PostgreSQL requires SSL
+    # Neon Serverless PostgreSQL requires SSL and statement_cache_size=0 for pgbouncer/pooling compatibility
     connect_args["ssl"] = "require"
+    connect_args["statement_cache_size"] = 0
+    connect_args["prepared_statement_cache_size"] = 0
 
 engine = create_async_engine(
     settings.DATABASE_URL,
