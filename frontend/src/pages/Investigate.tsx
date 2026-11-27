@@ -64,7 +64,26 @@ export const Investigate: React.FC<InvestigateProps> = ({
   const [analyzingAttachmentId, setAnalyzingAttachmentId] = useState<string | null>(null);
   const [attachmentLinkUrl, setAttachmentLinkUrl] = useState('');
 
-  // Gmail Live Integration State
+  // Gmail Live Integration & SRM University Accounts
+  const SRM_ACCOUNTS = [
+    {
+      email: '11024210096@stu.srmuniversity.ac.in',
+      name: 'Keerat Kaur',
+      role: 'Lead Researcher (B.Tech CSE - DSAI)',
+      avatar: 'KK',
+      color: 'bg-indigo-600',
+    },
+    {
+      email: '11024210071@stu.srmuniversity.ac.in',
+      name: 'Arushi Gupta',
+      role: 'Forensic Analyst (B.Tech CSE - DSAI)',
+      avatar: 'AG',
+      color: 'bg-purple-600',
+    },
+  ];
+
+  const [selectedStudentEmail, setSelectedStudentEmail] = useState<string>('11024210096@stu.srmuniversity.ac.in');
+  const [showAccountSelectorModal, setShowAccountSelectorModal] = useState(false);
   const [gmailLoading, setGmailLoading] = useState(false);
   const [gmailData, setGmailData] = useState<GmailInboxResponse | null>(null);
   const [selectedGmailMessage, setSelectedGmailMessage] = useState<GmailMessage | null>(null);
@@ -73,24 +92,30 @@ export const Investigate: React.FC<InvestigateProps> = ({
   const inputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
 
-  // Auto-fetch Gmail inbox when entering email mode
-  useEffect(() => {
-    if (activeMode === 'email' && !gmailData && !gmailLoading) {
-      loadGmailInbox();
-    }
-  }, [activeMode]);
+  const handleOpenEmailMode = () => {
+    setActiveMode('email');
+    setShowAccountSelectorModal(true);
+  };
 
-  const loadGmailInbox = async () => {
+  const switchAccountAndConnect = async (email: string) => {
+    setSelectedStudentEmail(email);
+    setShowAccountSelectorModal(false);
+    await loadGmailInbox(email);
+  };
+
+  const loadGmailInbox = async (accountEmail?: string) => {
+    const targetEmail = accountEmail || selectedStudentEmail;
     try {
       setGmailLoading(true);
       setError(null);
-      const data = await api.connectGmail();
+      const data = await api.connectGmail(targetEmail);
       setGmailData(data);
       if (data.messages && data.messages.length > 0) {
         setSelectedGmailMessage(data.messages[0]);
       }
     } catch (err: any) {
       console.error('Failed to load Gmail:', err);
+      setError(err.message || 'Failed to connect to SRM student mailbox');
     } finally {
       setGmailLoading(false);
     }
@@ -387,7 +412,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </button>
 
         <button
-          onClick={() => setActiveMode('email')}
+          onClick={handleOpenEmailMode}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
             activeMode === 'email'
               ? 'bg-white text-indigo-700 shadow-xs border border-slate-200'
@@ -397,7 +422,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
           <Mail className="w-4 h-4 text-indigo-600" />
           <span>Live Gmail & Email Forensics</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-            Direct Cloud Triage
+            SRM Live Mailbox
           </span>
         </button>
       </div>
@@ -501,15 +526,31 @@ export const Investigate: React.FC<InvestigateProps> = ({
                       Connected
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Account: <span className="font-mono font-medium text-slate-700">{gmailData?.account_email || 'analyst@argus-defense.ai'}</span> • Live attachment triage without downloading to host
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                    <span>Active Account:</span>
+                    <span className="font-mono font-bold text-indigo-700 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                      {selectedStudentEmail}
+                    </span>
+                    <button
+                      onClick={() => setShowAccountSelectorModal(true)}
+                      className="text-xs font-semibold text-indigo-600 hover:text-indigo-800 underline cursor-pointer ml-1"
+                    >
+                      Switch Email Account
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={loadGmailInbox}
+                  onClick={() => setShowAccountSelectorModal(true)}
+                  className="px-3.5 py-2 rounded-xl border border-indigo-200 bg-indigo-50/70 hover:bg-indigo-100/70 text-indigo-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <Mail className="w-3.5 h-3.5" />
+                  <span>Select Student Account</span>
+                </button>
+                <button
+                  onClick={() => loadGmailInbox()}
                   disabled={gmailLoading}
                   className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
                 >
@@ -1167,6 +1208,97 @@ export const Investigate: React.FC<InvestigateProps> = ({
           onNavigateToDetails={() => onNavigateToDetails(result.id)}
           onNavigateToDefense={() => onNavigateToDefense?.(result.id)}
         />
+      )}
+
+      {/* SRM University Account Selector Modal */}
+      {showAccountSelectorModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-5">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-red-500 to-rose-600 flex items-center justify-center text-white shadow-sm">
+                  <Mail className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">Select SRM Student Account</h3>
+                  <p className="text-xs text-slate-500">Connect Gmail inbox directly to ARGUS Sandbox</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowAccountSelectorModal(false)}
+                className="text-slate-400 hover:text-slate-600 p-1 rounded-lg hover:bg-slate-100 text-lg leading-none cursor-pointer"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="text-xs text-slate-600 leading-relaxed">
+              Choose your university institutional email to inspect incoming emails and scan attached files directly in isolated memory without local downloads:
+            </p>
+
+            <div className="space-y-3">
+              {SRM_ACCOUNTS.map((acc) => {
+                const isSelected = selectedStudentEmail === acc.email;
+                return (
+                  <div
+                    key={acc.email}
+                    onClick={() => switchAccountAndConnect(acc.email)}
+                    className={`p-4 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                      isSelected
+                        ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
+                        : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50 bg-white'
+                    }`}
+                  >
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className={`w-10 h-10 rounded-xl ${acc.color} text-white flex items-center justify-center font-bold text-xs shrink-0 shadow-xs`}>
+                        {acc.avatar}
+                      </div>
+                      <div className="min-w-0">
+                        <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                          <span>{acc.name}</span>
+                          {isSelected && (
+                            <span className="text-[10px] px-1.5 py-0.2 rounded-md bg-indigo-100 text-indigo-700 font-semibold">Active</span>
+                          )}
+                        </div>
+                        <div className="text-xs text-indigo-600 font-mono font-medium truncate mt-0.5">
+                          {acc.email}
+                        </div>
+                        <div className="text-[10px] text-slate-400 mt-0.5">
+                          {acc.role}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="shrink-0">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          switchAccountAndConnect(acc.email);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-semibold cursor-pointer transition-colors ${
+                          isSelected
+                            ? 'bg-indigo-600 text-white'
+                            : 'bg-slate-100 hover:bg-indigo-50 hover:text-indigo-600 text-slate-700'
+                        }`}
+                      >
+                        {isSelected ? 'Connected' : 'Select'}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div className="pt-2 text-center">
+              <button
+                onClick={() => setShowAccountSelectorModal(false)}
+                className="text-xs text-slate-400 hover:text-slate-600 font-medium cursor-pointer"
+              >
+                Close and proceed with current selection
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );

