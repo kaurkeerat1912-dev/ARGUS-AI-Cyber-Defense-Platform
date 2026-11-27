@@ -55,6 +55,9 @@ export function App() {
         onNewScan={() => setActiveTab('investigate')}
         activeTab={activeTab}
         setActiveTab={setActiveTab}
+        onOpenGmail={() => {
+          setActiveTab('investigate');
+        }}
       />
 
       <div className="flex-1 flex overflow-hidden">

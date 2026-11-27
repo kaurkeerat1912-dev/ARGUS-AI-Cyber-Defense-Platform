@@ -248,6 +248,39 @@ export const api = {
     return res.json();
   },
 
+  // Real Google OAuth & Gmail Live Inbox
+  async getGmailOAuthStatus(): Promise<import('../types').GmailOAuthStatus> {
+    const res = await fetch(buildUrl('/email/gmail/oauth/status'));
+    if (!res.ok) throw new Error('Failed to fetch Gmail OAuth status');
+    return res.json();
+  },
+
+  async getGmailOAuthUrl(): Promise<{ authorization_url: string; state: string }> {
+    const res = await fetch(buildUrl('/email/gmail/oauth/url'));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to generate OAuth URL' }));
+      throw new Error(err.detail || 'Failed to generate OAuth URL');
+    }
+    return res.json();
+  },
+
+  async disconnectRealGmail(): Promise<{ status: string; success: boolean }> {
+    const res = await fetch(buildUrl('/email/gmail/oauth/disconnect'), {
+      method: 'POST',
+    });
+    if (!res.ok) throw new Error('Failed to disconnect Gmail account');
+    return res.json();
+  },
+
+  async getRealGmailInbox(maxResults: number = 15): Promise<import('../types').GmailInboxResponse> {
+    const res = await fetch(buildUrl('/email/gmail/live-inbox', { max_results: maxResults }));
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to fetch live Gmail inbox' }));
+      throw new Error(err.detail || 'Failed to fetch live Gmail inbox');
+    }
+    return res.json();
+  },
+
   // Health
   async getSystemHealth(): Promise<SystemHealth> {
     const res = await fetch(buildUrl('/health'));
