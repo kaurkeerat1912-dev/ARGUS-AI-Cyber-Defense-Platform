@@ -28,6 +28,9 @@ import {
   ShieldCheck,
   CheckCircle2,
   FolderOpen,
+  QrCode,
+  Download,
+  Share2,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { InvestigationSummary } from '../types';
@@ -43,25 +46,25 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
   onOpenGraph,
   onOpenDefense,
 }) => {
-  // Pre-configured User Phone Number Profiles & Their Real WhatsApp Inboxes
+  // Pre-configured Accounts with real simulated student chat history
   const PRESET_ACCOUNTS = [
     {
       phone: '+91-98110-24210',
       ownerName: 'Keerat Kaur',
       avatar: 'KK',
-      status: 'Active Student Account',
+      status: 'SRM University CSE (DSAI)',
     },
     {
       phone: '+91-98765-43210',
       ownerName: 'Arushi Gupta',
       avatar: 'AG',
-      status: 'Forensic Lab Analyst',
+      status: 'SRM Cyber Forensics Lab',
     },
     {
       phone: '+91-99887-76655',
-      ownerName: 'Campus Security SOC',
-      avatar: 'CS',
-      status: 'University Threat Gate',
+      ownerName: 'University Threat Alert Gate',
+      avatar: 'UT',
+      status: 'SOC Incident Channel',
     },
   ];
 
@@ -72,19 +75,19 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
   const [customPhoneInput, setCustomPhoneInput] = useState<string>('');
   const [customNameInput, setCustomNameInput] = useState<string>('');
 
-  // Sample Exploit & Benign Raw Payloads
+  // Sample bytes for quick triage
   const samplePdfBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x34, 0x0A, 0x2F, 0x4A, 0x53, 0x28, 0x61, 0x70, 0x70, 0x2E, 0x61, 0x6C, 0x65, 0x72, 0x74, 0x28, 0x29, 0x29]);
   const sampleApkBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x41, 0x6E, 0x64, 0x72, 0x6F, 0x69, 0x64, 0x4D, 0x61, 0x6E, 0x69, 0x66, 0x65, 0x73, 0x74, 0x2E, 0x78, 0x6D, 0x6C]);
   const sampleDocmBytes = new Uint8Array([0x50, 0x4B, 0x03, 0x04, 0x14, 0x00, 0x06, 0x00, 0x76, 0x62, 0x61, 0x50, 0x72, 0x6F, 0x6A, 0x65, 0x63, 0x74]);
   const sampleCleanBytes = new Uint8Array([0x25, 0x50, 0x44, 0x46, 0x2D, 0x31, 0x2E, 0x35, 0x0A, 0x25, 0xC4, 0xE5, 0xF2, 0xE5]);
   const sampleSnapPngBytes = new Uint8Array([0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 0x00, 0x00, 0x00, 0x0D, 0x49, 0x48, 0x44, 0x52]);
 
-  // Phone-to-Chats Database Store
+  // Real Chat Store for each phone number
   const [phoneChatStore, setPhoneChatStore] = useState<Record<string, any[]>>({
     '+91-98110-24210': [
       {
         id: 'chat_keerat_1',
-        name: 'SRM Accounts & Fee Office',
+        name: 'Accounts & Examination Dept (SRM)',
         avatar: '🏛️',
         unread: 1,
         lastTime: '11:45 AM',
@@ -92,7 +95,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
         messages: [
           {
             id: 'km1',
-            text: 'Hello Keerat, revised exam fee clearance receipt attached. Please review immediately.',
+            text: 'Hello Keerat, revised exam fee clearance statement attached. Please review immediately.',
             time: '11:42 AM',
             fromMe: false,
             attachment: {
@@ -107,14 +110,37 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
       },
       {
         id: 'chat_keerat_2',
-        name: 'Phone Camera Snaps / Media',
-        avatar: '📸',
+        name: 'Papa (Home)',
+        avatar: '👨',
         unread: 1,
+        lastTime: '11:10 AM',
+        phone: '+91-98112-44556',
+        messages: [
+          {
+            id: 'km2_1',
+            text: 'Beta train ticket aur booking receipt check karlo:',
+            time: '11:10 AM',
+            fromMe: false,
+            attachment: {
+              name: 'IRCTC_E_Ticket_Confirmation.pdf',
+              size: 5120,
+              type: 'application/pdf',
+              bytes: sampleCleanBytes,
+              isSuspicious: false,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_keerat_3',
+        name: 'Major Project Group (DSAI)',
+        avatar: '🎓',
+        unread: 2,
         lastTime: '10:30 AM',
         phone: '+91-97112-99384',
         messages: [
           {
-            id: 'km2',
+            id: 'km3_1',
             text: 'Sent you a direct camera snap of the project laboratory hardware circuit for verification.',
             time: '10:30 AM',
             fromMe: false,
@@ -125,6 +151,42 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
               bytes: sampleSnapPngBytes,
               isSuspicious: false,
               isImage: true,
+            },
+          },
+          {
+            id: 'km3_2',
+            text: 'Also check this research dataset sample for model training.',
+            time: '10:35 AM',
+            fromMe: false,
+            attachment: {
+              name: 'CyberDefense_Research_Reference.pdf',
+              size: 4820,
+              type: 'application/pdf',
+              bytes: sampleCleanBytes,
+              isSuspicious: false,
+            },
+          },
+        ],
+      },
+      {
+        id: 'chat_keerat_4',
+        name: 'Unknown Number (Forwarded)',
+        avatar: '⚠️',
+        unread: 1,
+        lastTime: '09:20 AM',
+        phone: '+91-99887-76655',
+        messages: [
+          {
+            id: 'km4_1',
+            text: 'Urgent: Install campus patch update for wifi access bypass.',
+            time: '09:20 AM',
+            fromMe: false,
+            attachment: {
+              name: 'SRM_ERP_Update_v4.2.apk',
+              size: 14250,
+              type: 'application/vnd.android.package-archive',
+              bytes: sampleApkBytes,
+              isSuspicious: true,
             },
           },
         ],
@@ -150,19 +212,6 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
               type: 'application/vnd.ms-word.document.macroEnabled.12',
               bytes: sampleDocmBytes,
               isSuspicious: true,
-            },
-          },
-          {
-            id: 'am2',
-            text: 'Also cross-reference with clean research reference benchmark paper.',
-            time: '12:08 PM',
-            fromMe: false,
-            attachment: {
-              name: 'CyberDefense_Research_Reference.pdf',
-              size: 4820,
-              type: 'application/pdf',
-              bytes: sampleCleanBytes,
-              isSuspicious: false,
             },
           },
         ],
@@ -207,7 +256,6 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
   const [interceptedFileName, setInterceptedFileName] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  // File Upload Reference for Add New File into this WhatsApp Account
   const addChatFileInputRef = useRef<HTMLInputElement>(null);
   const interceptorFileInputRef = useRef<HTMLInputElement>(null);
 
@@ -217,8 +265,6 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
     } else {
       setSelectedChatId('');
     }
-    setScanResult(null);
-    setInterceptedFileName(null);
   }, [currentPhone]);
 
   const activeChat = chats.find((c) => c.id === selectedChatId) || chats[0];
@@ -226,7 +272,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
     c.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // AUTOMATIC DETECTION: executes immediately upon selecting/clicking or dropping a file
+  // AUTOMATIC DETECTION ENGINE
   const executeForensicTriage = async (file: File) => {
     try {
       setIsScanning(true);
@@ -249,26 +295,24 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
     executeForensicTriage(file);
   };
 
-  // Switch phone number
   const handleSwitchPhone = (phone: string, ownerName: string) => {
     setCurrentPhone(phone);
     setCurrentOwner(ownerName);
     setShowSwitchPhoneModal(false);
+    setScanResult(null);
   };
 
-  // Add Custom Phone & Files
   const handleAddCustomPhone = (e: React.FormEvent) => {
     e.preventDefault();
     const phone = customPhoneInput.trim();
     if (!phone) return;
-    const name = customNameInput.trim() || 'Custom User';
+    const name = customNameInput.trim() || 'Custom Contact';
 
     if (!phoneChatStore[phone]) {
-      // Create new isolated chat feed for this phone
       const initialChats = [
         {
           id: `chat_${Date.now()}_1`,
-          name: `${name}'s Private Cloud Inbox`,
+          name: `${name} (Personal Chats)`,
           avatar: '📱',
           unread: 1,
           lastTime: 'Just now',
@@ -276,11 +320,11 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
           messages: [
             {
               id: `msg_${Date.now()}_1`,
-              text: `Welcome ${name}! Your WhatsApp media vault is ready for file ingestion and live threat detection.`,
+              text: `Connected to WhatsApp for ${phone}. Select or drop any real chat file to automatically verify safety.`,
               time: 'Just now',
               fromMe: false,
               attachment: {
-                name: 'Welcome_Security_Guidelines.pdf',
+                name: 'Document_Receipt.pdf',
                 size: 3410,
                 type: 'application/pdf',
                 bytes: sampleCleanBytes,
@@ -307,15 +351,15 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
 
     const newMessages = uploadedFiles.map((file, idx) => ({
       id: `custom_msg_${Date.now()}_${idx}`,
-      text: `Attached file received in WhatsApp chat: ${file.name}`,
+      text: `File attached from ${currentOwner}'s WhatsApp: ${file.name}`,
       time: 'Just now',
       fromMe: false,
       attachment: {
         name: file.name,
         size: file.size,
         type: file.type || 'application/octet-stream',
-        bytes: new Uint8Array([0x5A, 0x4D, 0x90, 0x00]), // payload representation
-        isSuspicious: file.name.endsWith('.exe') || file.name.endsWith('.apk') || file.name.endsWith('.docm'),
+        bytes: new Uint8Array([0x5A, 0x4D, 0x90, 0x00]),
+        isSuspicious: file.name.endsWith('.exe') || file.name.endsWith('.apk') || file.name.endsWith('.docm') || file.name.endsWith('.zip'),
       },
     }));
 
@@ -340,7 +384,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
       return { ...prev, [currentPhone]: userChats };
     });
 
-    // Auto-detect the first uploaded file immediately
+    // Auto-detect the first file
     if (uploadedFiles[0]) {
       executeForensicTriage(uploadedFiles[0]);
     }
@@ -378,7 +422,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
 
   return (
     <div className="h-[calc(100vh-6.5rem)] flex flex-col rounded-3xl overflow-hidden border border-slate-200 shadow-xl bg-[#111b21] text-[#e9edef] animate-in fade-in duration-200">
-      {/* Top Controller Bar */}
+      {/* Top Header Bar */}
       <div className="bg-[#202c33] border-b border-[#2a3942] px-6 py-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
@@ -386,26 +430,26 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="text-sm font-bold text-[#e9edef]">WhatsApp Web — Direct Drag & Drop Interceptor</h2>
-              <span className="flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30">
+              <h2 className="text-sm font-bold text-[#e9edef]">WhatsApp Web Live Client & Interceptor</h2>
+              <span className="flex items-center gap-1 text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-[#00a884]/20 text-[#00a884] border border-[#00a884]/30">
                 <span className="w-1.5 h-1.5 rounded-full bg-[#00a884] animate-pulse"></span>
-                Active User: {currentOwner} ({currentPhone})
+                {currentOwner} ({currentPhone})
               </span>
             </div>
             <p className="text-xs text-[#8696a0]">
-              Files are isolated per phone number. Selecting or dropping any file automatically scans for threats.
+              Chats & media linked to your phone. Drag or click any file to auto-detect Safe vs Malicious.
             </p>
           </div>
         </div>
 
-        {/* Top Right Controls */}
+        {/* Action Controls */}
         <div className="flex items-center gap-2 shrink-0">
           <button
             onClick={() => setShowSwitchPhoneModal(true)}
             className="px-3.5 py-1.5 rounded-xl border border-emerald-500/40 bg-[#111b21] hover:bg-[#202c33] text-[#00a884] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shadow-xs active:scale-95"
           >
             <Smartphone className="w-3.5 h-3.5" />
-            <span>Switch / Change Phone No</span>
+            <span>Switch / Enter Phone No</span>
           </button>
 
           <button
@@ -425,239 +469,225 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
         </div>
       </div>
 
-      {/* Main Split Layout */}
+      {/* 3-Column Main Workspace: Chats List + Active Chat + Direct Drop Interceptor */}
       <div className="flex-1 flex overflow-hidden">
-        {/* ========================================================= */}
-        {/* SECTION 1: AUTHENTIC WHATSAPP WEB CLIENT FOR THIS NUMBER */}
-        {/* ========================================================= */}
-        <div className="flex-1 flex overflow-hidden border-r border-[#2a3942]">
-          {/* Left Chats List */}
-          <div className="w-80 sm:w-96 border-r border-[#2a3942] bg-[#111b21] flex flex-col">
-            <div className="bg-[#202c33] px-4 py-3 flex items-center justify-between border-b border-[#2a3942]">
-              <div className="flex items-center gap-2.5">
-                <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
-                  {currentOwner.split(' ').map((n) => n[0]).join('')}
-                </div>
-                <div>
-                  <div className="text-xs font-bold text-[#e9edef]">{currentOwner}</div>
-                  <div className="text-[10px] text-[#00a884] font-mono">{currentPhone} • Active Session</div>
-                </div>
+        {/* Left: Chats Column */}
+        <div className="w-72 sm:w-80 border-r border-[#2a3942] bg-[#111b21] flex flex-col shrink-0">
+          {/* User Profile Header */}
+          <div className="bg-[#202c33] px-4 py-3 flex items-center justify-between border-b border-[#2a3942]">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-full bg-emerald-600 text-white font-bold flex items-center justify-center text-xs">
+                {currentOwner.split(' ').map((n) => n[0]).join('')}
               </div>
-
-              <div className="flex items-center gap-2 text-[#aebac1]">
-                <MessageSquare className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
-                <MoreVertical className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
+              <div className="min-w-0">
+                <div className="text-xs font-bold text-[#e9edef] truncate">{currentOwner}</div>
+                <div className="text-[10px] text-[#00a884] font-mono truncate">{currentPhone}</div>
               </div>
             </div>
 
-            {/* Search */}
-            <div className="p-2 border-b border-[#222d34]">
-              <div className="bg-[#202c33] rounded-xl flex items-center px-3 py-1.5 gap-2 text-xs">
-                <Search className="w-4 h-4 text-[#8696a0]" />
-                <input
-                  type="text"
-                  placeholder="Search chats or documents"
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="bg-transparent border-none text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none w-full"
-                />
-              </div>
-            </div>
-
-            {/* Chat List for This Number */}
-            <div className="flex-1 overflow-y-auto divide-y divide-[#202c33]">
-              {filteredChats.length === 0 ? (
-                <div className="p-6 text-center text-xs text-[#8696a0]">
-                  No chats found for this number. Click "Add Files to this WhatsApp" above to load files.
-                </div>
-              ) : (
-                filteredChats.map((chat) => {
-                  const isSelected = chat.id === selectedChatId;
-                  const lastMsg = chat.messages[chat.messages.length - 1];
-                  return (
-                    <div
-                      key={chat.id}
-                      onClick={() => setSelectedChatId(chat.id)}
-                      className={`p-3.5 flex items-center gap-3 cursor-pointer transition-colors ${
-                        isSelected ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'
-                      }`}
-                    >
-                      <div className="w-11 h-11 rounded-full bg-[#202c33] flex items-center justify-center text-xl shrink-0 border border-[#2a3942]">
-                        {chat.avatar}
-                      </div>
-
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs font-bold text-[#e9edef] truncate">{chat.name}</span>
-                          <span className="text-[10px] text-[#8696a0] font-mono shrink-0">{chat.lastTime}</span>
-                        </div>
-
-                        <div className="flex items-center justify-between mt-1">
-                          <div className="flex items-center gap-1.5 text-[11px] text-[#8696a0] truncate">
-                            <Paperclip className="w-3 h-3 text-[#00a884] shrink-0" />
-                            <span className="truncate">{lastMsg?.attachment?.name || lastMsg?.text}</span>
-                          </div>
-                          {chat.unread > 0 && (
-                            <span className="w-4 h-4 rounded-full bg-[#00a884] text-[#111b21] text-[10px] font-bold flex items-center justify-center shrink-0">
-                              {chat.unread}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })
-              )}
+            <div className="flex items-center gap-2 text-[#aebac1]">
+              <MessageSquare className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
+              <MoreVertical className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
             </div>
           </div>
 
-          {/* Right Chat Pane */}
-          <div className="flex-1 bg-[#0b141a] flex flex-col justify-between overflow-hidden">
-            {activeChat ? (
-              <>
-                <div className="bg-[#202c33] px-5 py-3 flex items-center justify-between border-b border-[#2a3942]">
-                  <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-full bg-[#111b21] flex items-center justify-center text-lg border border-[#2a3942]">
-                      {activeChat.avatar}
-                    </div>
-                    <div>
-                      <div className="text-xs font-bold text-[#e9edef]">{activeChat.name}</div>
-                      <div className="text-[10px] text-[#8696a0] font-mono">{activeChat.phone}</div>
-                    </div>
-                  </div>
+          {/* Search */}
+          <div className="p-2 border-b border-[#222d34]">
+            <div className="bg-[#202c33] rounded-xl flex items-center px-3 py-1.5 gap-2 text-xs">
+              <Search className="w-4 h-4 text-[#8696a0]" />
+              <input
+                type="text"
+                placeholder="Search chats or files"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="bg-transparent border-none text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none w-full"
+              />
+            </div>
+          </div>
 
-                  <div className="flex items-center gap-3 text-[#aebac1]">
-                    <Search className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
-                    <MoreVertical className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
-                  </div>
-                </div>
-
-                {/* Messages Thread with 1-Click Auto Detection on Select */}
-                <div className="flex-1 p-6 overflow-y-auto space-y-4">
-                  <div className="text-center">
-                    <span className="text-[10px] bg-[#182229] text-[#8696a0] px-3 py-1 rounded-lg border border-[#222d34] font-mono">
-                      🔒 WHATSAPP CHAT MEDIA CONNECTED TO ARGUS FORENSIC DOCK
-                    </span>
-                  </div>
-
-                  {activeChat.messages.map((m: any) => {
-                    const att = m.attachment;
-                    const isCurrentlyScanningThis = isScanning && interceptedFileName === att?.name;
-
-                    return (
-                      <div
-                        key={m.id}
-                        className="max-w-md bg-[#202c33] p-4 rounded-2xl rounded-tl-none border border-[#2a3942] space-y-3 shadow-md"
-                      >
-                        <p className="text-xs text-[#e9edef] leading-relaxed">{m.text}</p>
-
-                        {att && (
-                          <div
-                            draggable
-                            onDragStart={(e) => handleDragStartAttachment(e, att)}
-                            onClick={() => handleSelectAndAutoDetectAttachment(att)}
-                            className="p-3 bg-[#111b21] rounded-xl border border-[#2a3942] hover:border-[#00a884] transition-all cursor-pointer group"
-                            title="Click to automatically detect threat score"
-                          >
-                            <div className="flex items-center justify-between gap-3">
-                              <div className="flex items-center gap-2.5 min-w-0">
-                                <div className="w-9 h-9 rounded-lg bg-[#202c33] flex items-center justify-center text-[#00a884] group-hover:scale-105 transition-transform shrink-0">
-                                  {att.isImage ? <Camera className="w-4 h-4" /> : <FileCode className="w-4 h-4" />}
-                                </div>
-                                <div className="min-w-0">
-                                  <div className="text-xs font-bold text-[#e9edef] truncate">{att.name}</div>
-                                  <div className="text-[10px] text-[#8696a0] font-mono">
-                                    {(att.size / 1024).toFixed(1)} KB • {att.type}
-                                  </div>
-                                </div>
-                              </div>
-
-                              {att.isSuspicious ? (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-rose-500/20 text-rose-300 border border-rose-500/40 shrink-0">
-                                  Threat Sample
-                                </span>
-                              ) : (
-                                <span className="text-[9px] font-bold px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 shrink-0">
-                                  Clean
-                                </span>
-                              )}
-                            </div>
-
-                            {/* 1-Click Auto Detect Bar */}
-                            <div className="mt-2.5 pt-2 border-t border-[#2a3942] flex items-center justify-between text-[11px]">
-                              <span className="text-[#8696a0] flex items-center gap-1 text-[10px]">
-                                <span>👈 Drag or click file</span>
-                              </span>
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  handleSelectAndAutoDetectAttachment(att);
-                                }}
-                                className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-[11px] font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1 active:scale-95"
-                              >
-                                {isCurrentlyScanningThis ? (
-                                  <>
-                                    <RefreshCw className="w-3 h-3 animate-spin" />
-                                    <span>Detecting...</span>
-                                  </>
-                                ) : (
-                                  <>
-                                    <ShieldAlert className="w-3 h-3" />
-                                    <span>Auto Detect</span>
-                                  </>
-                                )}
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0] font-mono">
-                          <span>{m.time}</span>
-                          <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-
-                {/* Input Bar */}
-                <div className="bg-[#202c33] px-4 py-3 flex items-center gap-3 border-t border-[#2a3942]">
-                  <Smile className="w-5 h-5 text-[#8696a0] hover:text-[#e9edef] cursor-pointer" />
-                  <button
-                    type="button"
-                    onClick={() => addChatFileInputRef.current?.click()}
-                    title="Attach files to this WhatsApp user"
-                    className="p-1 text-[#8696a0] hover:text-[#e9edef] cursor-pointer"
-                  >
-                    <Paperclip className="w-5 h-5" />
-                  </button>
-                  <input
-                    type="text"
-                    placeholder="Type message or attach documents to this number..."
-                    value={chatInputText}
-                    onChange={(e) => setChatInputText(e.target.value)}
-                    className="flex-1 bg-[#2a3942] rounded-xl px-4 py-2 text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none"
-                  />
-                  <Mic className="w-5 h-5 text-[#8696a0] hover:text-[#e9edef] cursor-pointer" />
-                </div>
-              </>
-            ) : (
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs text-[#8696a0]">
-                <FolderOpen className="w-12 h-12 text-[#2a3942] mb-3" />
-                <div className="font-bold text-sm text-[#e9edef]">No active chats for {currentPhone}</div>
-                <p className="mt-1 max-w-sm">
-                  Click "Add Files to this WhatsApp" at top-right to ingest files directly for this phone number.
-                </p>
+          {/* Chat List */}
+          <div className="flex-1 overflow-y-auto divide-y divide-[#202c33]">
+            {filteredChats.length === 0 ? (
+              <div className="p-6 text-center text-xs text-[#8696a0]">
+                No chats found for {currentPhone}. Click "Add Files to this WhatsApp" above to load files.
               </div>
+            ) : (
+              filteredChats.map((chat) => {
+                const isSelected = chat.id === selectedChatId;
+                const lastMsg = chat.messages[chat.messages.length - 1];
+                return (
+                  <div
+                    key={chat.id}
+                    onClick={() => setSelectedChatId(chat.id)}
+                    className={`p-3 flex items-center gap-3 cursor-pointer transition-colors ${
+                      isSelected ? 'bg-[#2a3942]' : 'hover:bg-[#202c33]'
+                    }`}
+                  >
+                    <div className="w-10 h-10 rounded-full bg-[#202c33] flex items-center justify-center text-lg shrink-0 border border-[#2a3942]">
+                      {chat.avatar}
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold text-[#e9edef] truncate">{chat.name}</span>
+                        <span className="text-[10px] text-[#8696a0] font-mono shrink-0">{chat.lastTime}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between mt-1">
+                        <div className="flex items-center gap-1.5 text-[11px] text-[#8696a0] truncate">
+                          <Paperclip className="w-3 h-3 text-[#00a884] shrink-0" />
+                          <span className="truncate">{lastMsg?.attachment?.name || lastMsg?.text}</span>
+                        </div>
+                        {chat.unread > 0 && (
+                          <span className="w-4 h-4 rounded-full bg-[#00a884] text-[#111b21] text-[10px] font-bold flex items-center justify-center shrink-0">
+                            {chat.unread}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
             )}
           </div>
         </div>
 
+        {/* Center: Active Chat Conversation */}
+        <div className="flex-1 bg-[#0b141a] flex flex-col justify-between overflow-hidden border-r border-[#2a3942]">
+          {activeChat ? (
+            <>
+              {/* Header */}
+              <div className="bg-[#202c33] px-5 py-3 flex items-center justify-between border-b border-[#2a3942]">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-[#111b21] flex items-center justify-center text-lg border border-[#2a3942]">
+                    {activeChat.avatar}
+                  </div>
+                  <div>
+                    <div className="text-xs font-bold text-[#e9edef]">{activeChat.name}</div>
+                    <div className="text-[10px] text-[#8696a0] font-mono">{activeChat.phone}</div>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3 text-[#aebac1]">
+                  <Search className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
+                  <MoreVertical className="w-4 h-4 hover:text-[#e9edef] cursor-pointer" />
+                </div>
+              </div>
+
+              {/* Messages Thread with 1-Click Auto Detect or Drag */}
+              <div className="flex-1 p-6 overflow-y-auto space-y-4">
+                <div className="text-center">
+                  <span className="text-[10px] bg-[#182229] text-[#8696a0] px-3 py-1 rounded-lg border border-[#222d34] font-mono">
+                    🔒 DRAG FILES TO RIGHT BOX OR CLICK "AUTO DETECT"
+                  </span>
+                </div>
+
+                {activeChat.messages.map((m: any) => {
+                  const att = m.attachment;
+                  const isCurrentlyScanningThis = isScanning && interceptedFileName === att?.name;
+
+                  return (
+                    <div
+                      key={m.id}
+                      className="max-w-md bg-[#202c33] p-4 rounded-2xl rounded-tl-none border border-[#2a3942] space-y-3 shadow-md"
+                    >
+                      <p className="text-xs text-[#e9edef] leading-relaxed">{m.text}</p>
+
+                      {att && (
+                        <div
+                          draggable
+                          onDragStart={(e) => handleDragStartAttachment(e, att)}
+                          onClick={() => handleSelectAndAutoDetectAttachment(att)}
+                          className="p-3 bg-[#111b21] rounded-xl border border-[#2a3942] hover:border-[#00a884] transition-all cursor-grab active:cursor-grabbing group space-y-2.5"
+                          title="Drag to right box or click to detect"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2.5 min-w-0">
+                              <div className="w-9 h-9 rounded-lg bg-[#202c33] flex items-center justify-center text-[#00a884] group-hover:scale-105 transition-transform shrink-0">
+                                {att.isImage ? <Camera className="w-4 h-4" /> : <FileCode className="w-4 h-4" />}
+                              </div>
+                              <div className="min-w-0">
+                                <div className="text-xs font-bold text-[#e9edef] truncate">{att.name}</div>
+                                <div className="text-[10px] text-[#8696a0] font-mono">
+                                  {(att.size / 1024).toFixed(1)} KB • {att.type}
+                                </div>
+                              </div>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleSelectAndAutoDetectAttachment(att);
+                              }}
+                              className="px-2.5 py-1 rounded-lg bg-[#00a884] hover:bg-[#008f6f] text-white text-xs font-bold transition-all shadow-xs cursor-pointer flex items-center gap-1.5 shrink-0 active:scale-95"
+                            >
+                              {isCurrentlyScanningThis ? (
+                                <>
+                                  <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                  <span>Detecting...</span>
+                                </>
+                              ) : (
+                                <>
+                                  <ShieldAlert className="w-3.5 h-3.5" />
+                                  <span>Auto Detect</span>
+                                </>
+                              )}
+                            </button>
+                          </div>
+
+                          <div className="pt-2 border-t border-[#2a3942] flex items-center justify-between text-[11px] text-[#8696a0]">
+                            <span>👈 Drag to right box or click</span>
+                            <span className="text-[#00a884] font-bold">1-Click Scan →</span>
+                          </div>
+                        </div>
+                      )}
+
+                      <div className="flex items-center justify-end gap-1 text-[10px] text-[#8696a0] font-mono">
+                        <span>{m.time}</span>
+                        <CheckCheck className="w-3.5 h-3.5 text-[#53bdeb]" />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Chat Input Bar */}
+              <div className="bg-[#202c33] px-4 py-3 flex items-center gap-3 border-t border-[#2a3942]">
+                <Smile className="w-5 h-5 text-[#8696a0] hover:text-[#e9edef] cursor-pointer" />
+                <button
+                  type="button"
+                  onClick={() => addChatFileInputRef.current?.click()}
+                  title="Attach files to this WhatsApp user"
+                  className="p-1 text-[#8696a0] hover:text-[#e9edef] cursor-pointer"
+                >
+                  <Paperclip className="w-5 h-5" />
+                </button>
+                <input
+                  type="text"
+                  placeholder="Type message or attach files for this number..."
+                  value={chatInputText}
+                  onChange={(e) => setChatInputText(e.target.value)}
+                  className="flex-1 bg-[#2a3942] rounded-xl px-4 py-2 text-xs text-[#e9edef] placeholder-[#8696a0] focus:outline-none"
+                />
+                <Mic className="w-5 h-5 text-[#8696a0] hover:text-[#e9edef] cursor-pointer" />
+              </div>
+            </>
+          ) : (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center text-xs text-[#8696a0]">
+              <FolderOpen className="w-12 h-12 text-[#2a3942] mb-3" />
+              <div className="font-bold text-sm text-[#e9edef]">No active chats for {currentPhone}</div>
+              <p className="mt-1 max-w-sm">
+                Click "Add Files to this WhatsApp" at top-right to ingest files directly for this phone number.
+              </p>
+            </div>
+          )}
+        </div>
+
         {/* ========================================================= */}
-        {/* SECTION 2: LIVE ARGUS DRAG & DROP INTERCEPTOR DOCK       */}
+        {/* RIGHT: DRAG & DROP INTERCEPTOR DOCK (PERFECTLY RESTORED)   */}
         {/* ========================================================= */}
-        <div className="w-96 bg-white text-slate-900 flex flex-col justify-between p-5 overflow-y-auto">
+        <div className="w-80 sm:w-96 bg-white text-slate-900 flex flex-col justify-between p-5 overflow-y-auto shrink-0">
           <div className="space-y-4">
             <div className="pb-3 border-b border-slate-100 flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -719,7 +749,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
                     Drop WhatsApp File Here
                   </div>
                   <div className="text-[10px] text-slate-400 max-w-[200px] leading-relaxed">
-                    Or click any attachment on the left to detect automatically
+                    Drag any attachment from the chats or click to browse
                   </div>
                 </div>
               )}
@@ -786,7 +816,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
                 </div>
 
                 <div className="text-[10px] text-slate-500 font-mono flex items-center justify-between">
-                  <span>{(scanResult.file_size_bytes / 1024).toFixed(1)} KB</span>
+                  <span>{((scanResult.file_size_bytes || 0) / 1024).toFixed(1)} KB</span>
                   <span>SHA: {scanResult.sha256.substring(0, 14)}...</span>
                 </div>
 
@@ -808,7 +838,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
               <span>Zero-Download Protection</span>
             </div>
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Files dropped or clicked are analyzed in isolated memory. Unsafe files are locked in the quarantine vault.
+              Files are evaluated in isolated memory buffer sandbox without touching your local OS.
             </p>
           </div>
         </div>
@@ -825,7 +855,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
                 </div>
                 <div>
                   <h3 className="text-base font-bold text-slate-900">Switch WhatsApp Phone Number</h3>
-                  <p className="text-xs text-slate-500">Each number loads its own isolated files and chats</p>
+                  <p className="text-xs text-slate-500">Each number loads its own isolated chats and incoming files</p>
                 </div>
               </div>
               <button
@@ -859,7 +889,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
                       </div>
                       <div>
                         <div className="text-xs font-bold text-slate-900">{acc.ownerName}</div>
-                        <div className="text-[11px] text-slate-500 font-mono">{acc.phone}</div>
+                        <div className="text-[11px] text-slate-500 font-mono">{acc.phone} • {acc.status}</div>
                       </div>
                     </div>
 
@@ -895,7 +925,7 @@ export const WhatsAppWebPage: React.FC<WhatsAppWebPageProps> = ({
               <div>
                 <input
                   type="text"
-                  placeholder="Owner Name (e.g. Security Analyst)"
+                  placeholder="Owner Name (e.g. Papa, Friend, Group)"
                   value={customNameInput}
                   onChange={(e) => setCustomNameInput(e.target.value)}
                   className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-emerald-500"
