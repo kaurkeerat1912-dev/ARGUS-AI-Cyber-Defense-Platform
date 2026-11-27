@@ -45,13 +45,15 @@ app = FastAPI(
 )
 
 # CORS Configuration
-cors_origins = list(settings.CORS_ORIGINS) if settings.CORS_ORIGINS else ["*"]
+cors_origins = list(settings.CORS_ORIGINS) if isinstance(settings.CORS_ORIGINS, (list, set)) else ["*"]
 allow_all = "*" in cors_origins
 
+# In production, allow all origins or allow Vercel previews & production domain with credentials
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"] if allow_all else cors_origins,
-    allow_credentials=not allow_all,
+    allow_origin_regex=r"https://.*\.vercel\.app" if not allow_all else None,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )

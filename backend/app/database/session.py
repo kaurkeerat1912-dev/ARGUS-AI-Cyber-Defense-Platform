@@ -1,6 +1,6 @@
 """
 Database Session and Engine Management
-Supports SQLite (local dev) and PostgreSQL (production).
+Supports SQLite (local dev) and Neon / Render PostgreSQL (production).
 """
 
 from typing import AsyncGenerator
@@ -8,10 +8,21 @@ from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, Asyn
 from sqlalchemy.orm import declarative_base
 from backend.app.core.config import settings
 
+# Engine configuration: SQLite requires check_same_thread=False
+# Neon / Cloud PostgreSQL with asyncpg uses SSL connection
+connect_args = {}
+if "sqlite" in settings.DATABASE_URL:
+    connect_args["check_same_thread"] = False
+elif "postgresql+asyncpg" in settings.DATABASE_URL:
+    # Neon Serverless PostgreSQL requires SSL
+    connect_args["ssl"] = "require"
+
 engine = create_async_engine(
     settings.DATABASE_URL,
     echo=False,
-    connect_args={"check_same_thread": False} if "sqlite" in settings.DATABASE_URL else {}
+    connect_args=connect_args,
+    pool_pre_ping=True,
+    pool_recycle=300 if "postgresql" in settings.DATABASE_URL else -1,
 )
 
 AsyncSessionLocal = async_sessionmaker(
