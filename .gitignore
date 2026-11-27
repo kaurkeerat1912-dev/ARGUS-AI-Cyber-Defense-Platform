@@ -35,6 +35,9 @@ pnpm-debug.log*
 *.key
 *.cert
 *.pfx
+data/oauth_tokens/
+data/oauth_tokens/*
+
 
 # Database & Runtime State
 *.sqlite
