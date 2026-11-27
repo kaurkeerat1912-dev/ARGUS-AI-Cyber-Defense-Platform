@@ -1165,6 +1165,15 @@ export const Investigate: React.FC<InvestigateProps> = ({
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href="https://web.whatsapp.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-md shadow-emerald-500/20 active:scale-95"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Open web.whatsapp.com</span>
+                </a>
                 <button
                   onClick={() => setShowWaConnectModal(true)}
                   className="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
@@ -1180,6 +1189,46 @@ export const Investigate: React.FC<InvestigateProps> = ({
                   <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
                   <span>Sync WhatsApp</span>
                 </button>
+              </div>
+            </div>
+
+            {/* Chrome / Edge Extension Deployment Banner for WhatsApp Web */}
+            <div className="mt-4 p-4 rounded-2xl bg-gradient-to-r from-slate-900 via-emerald-950 to-slate-900 text-white border border-emerald-800/50 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-400/30 flex items-center justify-center text-emerald-400 font-bold">
+                  🧩
+                </div>
+                <div>
+                  <div className="text-xs font-bold flex items-center gap-2">
+                    <span>WhatsApp Web Chrome / Edge Extension</span>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/30 text-emerald-300 font-mono">
+                      LOAD UNPACKED READY
+                    </span>
+                  </div>
+                  <div className="text-[11px] text-slate-300 mt-0.5">
+                    Injects floating drag-and-drop pop up directly into official <code className="text-emerald-300 font-mono">web.whatsapp.com</code>.
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={() => {
+                    alert('To load in Chrome/Edge:\n1. Open chrome://extensions/\n2. Enable Developer Mode (top-right)\n3. Click "Load unpacked"\n4. Select folder: malicious-file-forensics/extension\n5. Open web.whatsapp.com — ARGUS Interceptor pop-up appears automatically!');
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-white text-slate-900 text-xs font-bold hover:bg-slate-100 cursor-pointer transition-all shadow-xs"
+                >
+                  View 1-Step Setup
+                </button>
+                <a
+                  href="https://web.whatsapp.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-all shadow-xs flex items-center gap-1.5"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Launch WhatsApp Web</span>
+                </a>
               </div>
             </div>
 

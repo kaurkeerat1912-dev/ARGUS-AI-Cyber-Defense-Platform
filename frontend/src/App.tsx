@@ -13,9 +13,19 @@ import { WhatsAppFloatingWidget } from './components/modals/WhatsAppFloatingWidg
 import { WhatsAppWebSimulatorModal } from './components/modals/WhatsAppWebSimulatorModal';
 
 export function App() {
-  const [activeTab, setActiveTab] = useState<string>('overview');
+  // Support deep-linking from WhatsApp Web Chrome extension: e.g. http://localhost:5173/?tab=details&id=...
+  const [activeTab, setActiveTab] = useState<string>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('tab') || 'overview';
+  });
   const [showWhatsAppSimulator, setShowWhatsAppSimulator] = useState<boolean>(false);
   const [activeInvestigationId, setActiveInvestigationId] = useState<string | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlId = params.get('id');
+    if (urlId) {
+      sessionStorage.setItem('argus_active_investigation_id', urlId);
+      return urlId;
+    }
     return sessionStorage.getItem('argus_active_investigation_id');
   });
 
