@@ -28,8 +28,6 @@ from backend.app.services.ml_engine.risk_scorer import risk_scorer
 from backend.app.services.attack_graph.builder import attack_graph_builder
 from backend.app.services.explainable_ai.explainer import xai_engine
 from backend.app.services.report_generation.generator import forensic_report_generator
-from backend.app.services.email_extraction.gmail_service import gmail_oauth_service
-from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 
@@ -666,94 +664,3 @@ async def connect_gmail_account(payload: Optional[GmailConnectRequest] = None):
         "total_messages": len(inbox_messages),
         "messages": inbox_messages
     }
-
-
-# ============================================================================
-# REAL GOOGLE GMAIL OAUTH 2.0 & INBOX FORENSICS ENDPOINTS
-# ============================================================================
-
-@router.get("/gmail/oauth/status")
-async def get_gmail_oauth_status():
-    """
-    Checks if Google OAuth 2.0 is configured (.env) and whether a real Gmail account is connected.
-    """
-    is_configured = gmail_oauth_service.is_configured()
-    profile = gmail_oauth_service.get_user_profile()
-    creds_meta = gmail_oauth_service.get_client_credentials()
-
-    return {
-        "configured": is_configured,
-        "authenticated": profile.get("authenticated", False),
-        "email": profile.get("email"),
-        "messages_total": profile.get("messages_total", 0),
-        "redirect_uri": creds_meta["redirect_uri"]
-    }
-
-
-@router.get("/gmail/oauth/url")
-async def get_gmail_oauth_authorization_url():
-    """
-    Returns Google OAuth 2.0 consent authorization URL for the user to connect their real Gmail account.
-    """
-    if not gmail_oauth_service.is_configured():
-        raise HTTPException(
-            status_code=400,
-            detail="Google Client ID & Client Secret are not configured in your backend .env file. Please add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET."
-        )
-
-    try:
-        auth_data = gmail_oauth_service.create_authorization_url()
-        return auth_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to generate OAuth URL: {str(e)}")
-
-
-@router.get("/gmail/oauth/callback")
-async def handle_gmail_oauth_callback(code: Optional[str] = None, error: Optional[str] = None):
-    """
-    Handles redirect callback from Google OAuth 2.0 server.
-    Exchanges code for access token and redirects to ARGUS frontend with success notice.
-    """
-    if error:
-        return RedirectResponse(url=f"http://localhost:5173/?tab=investigate&gmail_oauth_error={error}")
-
-    if not code:
-        return RedirectResponse(url="http://localhost:5173/?tab=investigate&gmail_oauth_error=no_code_provided")
-
-    try:
-        user_info = gmail_oauth_service.exchange_code_for_token(code)
-        user_email = user_info.get("email", "connected")
-        return RedirectResponse(url=f"http://localhost:5173/?tab=investigate&gmail_connected=true&email={user_email}")
-    except Exception as e:
-        import urllib.parse
-        err_msg = urllib.parse.quote(str(e))
-        return RedirectResponse(url=f"http://localhost:5173/?tab=investigate&gmail_oauth_error={err_msg}")
-
-
-@router.post("/gmail/oauth/disconnect")
-async def disconnect_real_gmail_account():
-    """
-    Disconnects the active real Gmail OAuth session.
-    """
-    success = gmail_oauth_service.disconnect()
-    return {"status": "disconnected", "success": success}
-
-
-@router.get("/gmail/live-inbox")
-async def fetch_real_gmail_inbox(max_results: int = 15):
-    """
-    Fetches real inbox emails & file attachments directly from Gmail API for the authorized user.
-    """
-    profile = gmail_oauth_service.get_user_profile()
-    if not profile.get("authenticated"):
-        raise HTTPException(
-            status_code=401,
-            detail="No real Gmail account currently authenticated. Please connect via Google OAuth 2.0 first."
-        )
-
-    try:
-        inbox_data = gmail_oauth_service.fetch_real_inbox_messages(max_results=max_results)
-        return inbox_data
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to fetch live Gmail messages: {str(e)}")
-

@@ -307,12 +307,3 @@ export interface GmailInboxResponse {
   total_messages: number;
   messages: GmailMessage[];
 }
-
-export interface GmailOAuthStatus {
-  configured: boolean;
-  authenticated: boolean;
-  email?: string;
-  messages_total?: number;
-  redirect_uri?: string;
-}
-
