@@ -45,6 +45,29 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
 
 
 async def init_db() -> None:
-    """Initialize database tables."""
+    """Initialize database tables and safely migrate timestamp columns if on PostgreSQL."""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+        
+        # If running on PostgreSQL, ensure datetime columns are TIMESTAMP WITH TIME ZONE
+        if "postgresql" in settings.DATABASE_URL:
+            from sqlalchemy import text
+            columns_to_migrate = [
+                ("investigations", "created_at"),
+                ("investigations", "completed_at"),
+                ("evidence_items", "created_at"),
+                ("behavioral_events", "timestamp"),
+                ("event_correlations", "timestamp"),
+                ("attack_graphs", "created_at"),
+                ("forensic_reports", "created_at"),
+                ("defensive_actions", "created_at"),
+                ("defensive_actions", "executed_at"),
+            ]
+            for table, col in columns_to_migrate:
+                try:
+                    await conn.execute(
+                        text(f"ALTER TABLE {table} ALTER COLUMN {col} TYPE TIMESTAMP WITH TIME ZONE USING {col} AT TIME ZONE 'UTC';")
+                    )
+                except Exception as ex:
+                    # Table or column might not exist or already be TIMESTAMPTZ
+                    pass

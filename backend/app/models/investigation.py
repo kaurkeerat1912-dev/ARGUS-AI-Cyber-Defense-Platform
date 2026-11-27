@@ -35,8 +35,8 @@ class Investigation(Base):
     error_message = Column(Text, nullable=True)
     summary = Column(Text, nullable=True)
 
-    created_at = Column(DateTime, default=get_utc_now, index=True)
-    completed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now, index=True)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     evidence_items = relationship("EvidenceItem", back_populates="investigation", cascade="all, delete-orphan")
@@ -62,7 +62,7 @@ class EvidenceItem(Base):
     explanation = Column(Text, nullable=False)
     confidence = Column(Float, default=1.0)
     limitations = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=get_utc_now)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
 
     investigation = relationship("Investigation", back_populates="evidence_items")
 
@@ -73,7 +73,7 @@ class BehavioralEvent(Base):
     id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
     investigation_id = Column(String(36), ForeignKey("investigations.id", ondelete="CASCADE"), nullable=False, index=True)
     event_type = Column(String(64), nullable=False)  # PROCESS_CREATE, FILE_WRITE, FILE_DELETE, NETWORK_CONNECT, DNS_QUERY, REGISTRY_SET
-    timestamp = Column(DateTime, nullable=False)
+    timestamp = Column(DateTime(timezone=True), nullable=False)
     process_id = Column(Integer, nullable=True)
     process_name = Column(String(255), nullable=True)
     parent_process_id = Column(Integer, nullable=True)
@@ -101,7 +101,7 @@ class EventCorrelation(Base):
     reason = Column(Text, nullable=False)
     confidence = Column(Float, default=0.8)
     supporting_evidence_ids = Column(Text, nullable=True)  # JSON list of strings
-    timestamp = Column(DateTime, default=get_utc_now)
+    timestamp = Column(DateTime(timezone=True), default=get_utc_now)
 
     investigation = relationship("Investigation", back_populates="correlations")
 
@@ -116,7 +116,7 @@ class AttackGraph(Base):
     summary = Column(Text, nullable=False)
     missing_evidence_notes = Column(Text, nullable=True)
     timeline_json = Column(Text, nullable=True)  # JSON list of timeline event dicts
-    created_at = Column(DateTime, default=get_utc_now)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
 
     investigation = relationship("Investigation", back_populates="attack_graph")
 
@@ -132,7 +132,7 @@ class ForensicReport(Base):
     defensive_actions = Column(Text, nullable=False)  # JSON list of action steps
     limitations_disclaimer = Column(Text, nullable=False)
     generated_by = Column(String(64), default="DETERMINISTIC_EXPERT_SYSTEM")  # or OLLAMA_LOCAL_LLM
-    created_at = Column(DateTime, default=get_utc_now)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
 
     investigation = relationship("Investigation", back_populates="report")
 
@@ -150,7 +150,7 @@ class DefensiveAction(Base):
     status = Column(String(32), default="PROPOSED")  # PROPOSED, SIMULATING, ENFORCED, VERIFIED_BLOCKED, FAILED
     risk_reduction = Column(Float, default=15.0)
     simulated_output = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=get_utc_now)
-    executed_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime(timezone=True), default=get_utc_now)
+    executed_at = Column(DateTime(timezone=True), nullable=True)
 
     investigation = relationship("Investigation", back_populates="defensive_actions")
