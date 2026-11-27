@@ -24,7 +24,11 @@ import {
   Paperclip,
   CheckCircle,
   MessageSquare,
-  Share2,
+  Smartphone,
+  Camera,
+  Image as ImageIcon,
+  KeyRound,
+  QrCode,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { InvestigationSummary, EvidenceItem, EmailExtractionResult, EmailAttachment, GmailMessage, GmailInboxResponse } from '../types';
@@ -43,7 +47,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
   onNavigateToDetails,
   onNavigateToDefense,
 }) => {
-  // Mode selection: 'file', 'email', or 'whatsapp'
+  // Mode selection: 'file' or 'email'
   const [activeMode, setActiveMode] = useState<'file' | 'email' | 'whatsapp'>('file');
 
   // File Upload State
@@ -91,11 +95,18 @@ export const Investigate: React.FC<InvestigateProps> = ({
   const [selectedGmailMessage, setSelectedGmailMessage] = useState<GmailMessage | null>(null);
   const [gmailFilter, setGmailFilter] = useState<'all' | 'unread' | 'attachments'>('attachments');
 
-  // WhatsApp Ingestion State
+  // WhatsApp Ingestion & Custom User Phone Number State
   const [waLoading, setWaLoading] = useState(false);
   const [waChats, setWaChats] = useState<any[]>([]);
   const [selectedWaChat, setSelectedWaChat] = useState<any | null>(null);
   const [analyzingWaId, setAnalyzingWaId] = useState<string | null>(null);
+  const [userWaNumber, setUserWaNumber] = useState<string>('+91-98110-24210');
+  const [userWaDisplayName, setUserWaDisplayName] = useState<string>('Keerat Kaur');
+  const [showWaConnectModal, setShowWaConnectModal] = useState(false);
+  const [waPhoneInput, setWaPhoneInput] = useState<string>('+91-98110-24210');
+  const [waNameInput, setWaNameInput] = useState<string>('Keerat Kaur');
+  const [waPairingCode, setWaPairingCode] = useState<string>('4210-ARG9');
+  const [waConnected, setWaConnected] = useState<boolean>(true);
 
   const inputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -188,11 +199,12 @@ export const Investigate: React.FC<InvestigateProps> = ({
     }
   };
 
-  const loadWhatsAppChats = async () => {
+  const loadWhatsAppChats = async (phoneToUse?: string) => {
+    const targetPhone = phoneToUse || userWaNumber;
     try {
       setWaLoading(true);
       setError(null);
-      const data = await api.getWhatsAppChats();
+      const data = await api.getWhatsAppChats(targetPhone);
       setWaChats(data.chats || []);
       if (data.chats && data.chats.length > 0) {
         setSelectedWaChat(data.chats[0]);
@@ -200,6 +212,31 @@ export const Investigate: React.FC<InvestigateProps> = ({
     } catch (err: any) {
       console.error('Failed to load WhatsApp:', err);
       setError(err.message || 'Failed to sync WhatsApp chats');
+    } finally {
+      setWaLoading(false);
+    }
+  };
+
+  const handlePairWhatsAppNumber = async (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    const phone = waPhoneInput.trim();
+    if (!phone) return;
+    try {
+      setWaLoading(true);
+      setError(null);
+      const conn = await api.connectWhatsAppNumber(phone, waNameInput.trim() || 'Analyst');
+      setUserWaNumber(conn.phone_number);
+      setUserWaDisplayName(waNameInput.trim() || 'Analyst');
+      setWaPairingCode(conn.pairing_code);
+      setWaConnected(true);
+      setWaChats(conn.chats || []);
+      if (conn.chats && conn.chats.length > 0) {
+        setSelectedWaChat(conn.chats[0]);
+      }
+      setShowWaConnectModal(false);
+    } catch (err: any) {
+      console.error('WhatsApp pairing error:', err);
+      setError(err.message || 'Failed to pair WhatsApp number');
     } finally {
       setWaLoading(false);
     }
@@ -469,7 +506,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
       </div>
 
       {/* Mode Switcher Tabs */}
-      <div className="flex flex-wrap items-center gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200">
+      <div className="flex items-center gap-2 bg-slate-100 p-1.5 rounded-2xl w-fit border border-slate-200">
         <button
           onClick={() => setActiveMode('file')}
           className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -513,7 +550,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
           <MessageSquare className="w-4 h-4 text-emerald-600" />
           <span>WhatsApp Media Triage</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-            Live Chat Files
+            Live Chat Files & Snaps
           </span>
         </button>
       </div>
@@ -596,179 +633,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
               </button>
             </div>
           )}
-        </div>
-      )}
-
-      {/* MODE 3: WhatsApp Media Triage */}
-      {activeMode === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={loadWhatsAppChats}
-                  disabled={waLoading}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Sync WhatsApp</span>
-                </button>
-              </div>
-            </div>
-
-            {/* WhatsApp Chat List and Media Ingestion */}
-            <div className="pt-5">
-              {waLoading && waChats.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
-                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
-                  <span>Syncing WhatsApp encrypted session and chat media...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {waChats.map((chat) => {
-                      const isSelected = selectedWaChat?.chat_id === chat.chat_id;
-                      return (
-                        <div
-                          key={chat.chat_id}
-                          onClick={() => setSelectedWaChat(chat)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                {chat.avatar}
-                              </div>
-                              <span className="text-xs font-bold text-slate-900 truncate">{chat.sender_name}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono shrink-0">{chat.last_message_time}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-1.5 ml-10">
-                            {chat.messages[0]?.text}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
-                              <span>{chat.messages[0]?.attachment?.filename}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right: Selected Chat Thread & Direct Media Scanner */}
-                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
-                    {selectedWaChat ? (
-                      <div className="space-y-4">
-                        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
-                          </span>
-                        </div>
-
-                        {/* Messages in this chat */}
-                        <div className="space-y-3">
-                          {selectedWaChat.messages.map((m: any) => {
-                            const att = m.attachment;
-                            const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
-                            return (
-                              <div key={m.message_id} className="space-y-2">
-                                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
-                                  <p className="text-xs text-slate-800 leading-relaxed">{m.text}</p>
-                                  <div className="text-[10px] text-slate-400 text-right mt-1 font-mono">{m.timestamp}</div>
-                                </div>
-
-                                {att && (
-                                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
-                                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {att.is_suspicious && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                          High Risk
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Direct Ingestion Ready</span>
-                                      </span>
-
-                                      <button
-                                        disabled={analyzing}
-                                        onClick={() => handleScanWhatsAppMedia(m, att)}
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
-                                      >
-                                        {isAnalyzingThis ? (
-                                          <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Scanning...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShieldAlert className="w-3.5 h-3.5" />
-                                            <span>Scan in Sandbox</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-slate-400">
-                        Select a chat contact from WhatsApp to inspect incoming media
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
         </div>
       )}
 
@@ -1282,18 +1146,34 @@ export const Investigate: React.FC<InvestigateProps> = ({
                     <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
                     <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
+                      {waConnected ? 'Session Connected' : 'Awaiting Pairing'}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
+                  <div className="flex items-center gap-2 text-xs text-slate-500 mt-1">
+                    <span>Linked Number:</span>
+                    <span className="font-mono font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                      {userWaNumber} ({userWaDisplayName})
+                    </span>
+                    <button
+                      onClick={() => setShowWaConnectModal(true)}
+                      className="text-xs font-semibold text-emerald-600 hover:text-emerald-800 underline cursor-pointer ml-1"
+                    >
+                      Change / Enter Number
+                    </button>
+                  </div>
                 </div>
               </div>
 
               <div className="flex items-center gap-2 shrink-0">
                 <button
-                  onClick={loadWhatsAppChats}
+                  onClick={() => setShowWaConnectModal(true)}
+                  className="px-3.5 py-2 rounded-xl border border-emerald-200 bg-emerald-50/70 hover:bg-emerald-100/70 text-emerald-800 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-emerald-600" />
+                  <span>Insert Phone Number</span>
+                </button>
+                <button
+                  onClick={() => loadWhatsAppChats()}
                   disabled={waLoading}
                   className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
                 >
@@ -1313,9 +1193,10 @@ export const Investigate: React.FC<InvestigateProps> = ({
               ) : (
                 <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
                   {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
+                  <div className="lg:col-span-5 space-y-2 max-h-[420px] overflow-y-auto pr-1">
                     {waChats.map((chat) => {
                       const isSelected = selectedWaChat?.chat_id === chat.chat_id;
+                      const hasSnap = chat.messages?.some((m: any) => m.attachment?.content_type?.startsWith('image/'));
                       return (
                         <div
                           key={chat.chat_id}
@@ -1340,9 +1221,14 @@ export const Investigate: React.FC<InvestigateProps> = ({
                           </div>
                           <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
                             <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
+                              {hasSnap ? <Camera className="w-3 h-3 text-emerald-600" /> : <Paperclip className="w-3 h-3 text-emerald-600" />}
                               <span>{chat.messages[0]?.attachment?.filename}</span>
                             </span>
+                            {hasSnap && (
+                              <span className="text-[9px] px-1.5 py-0.5 rounded bg-teal-50 text-teal-700 font-bold border border-teal-200">
+                                Snap / Image
+                              </span>
+                            )}
                           </div>
                         </div>
                       );
@@ -1358,16 +1244,19 @@ export const Investigate: React.FC<InvestigateProps> = ({
                             <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
                             <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
                           </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
+                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                            <Smartphone className="w-3 h-3" />
+                            WhatsApp Active
                           </span>
                         </div>
 
                         {/* Messages in this chat */}
-                        <div className="space-y-3">
+                        <div className="space-y-3 max-h-[340px] overflow-y-auto pr-1">
                           {selectedWaChat.messages.map((m: any) => {
                             const att = m.attachment;
                             const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
+                            const isImageSnap = att?.content_type?.startsWith('image/');
+
                             return (
                               <div key={m.message_id} className="space-y-2">
                                 <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
@@ -1379,8 +1268,14 @@ export const Investigate: React.FC<InvestigateProps> = ({
                                   <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
                                     <div className="flex items-start justify-between gap-3">
                                       <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
+                                        <div className={`p-2.5 rounded-xl ${
+                                          att.is_suspicious 
+                                            ? 'bg-rose-50 text-rose-600' 
+                                            : isImageSnap
+                                            ? 'bg-teal-50 text-teal-600'
+                                            : 'bg-emerald-50 text-emerald-600'
+                                        }`}>
+                                          {isImageSnap ? <Camera className="w-5 h-5" /> : <FileCode className="w-5 h-5" />}
                                         </div>
                                         <div className="min-w-0">
                                           <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
@@ -1390,12 +1285,35 @@ export const Investigate: React.FC<InvestigateProps> = ({
                                         </div>
                                       </div>
 
-                                      {att.is_suspicious && (
+                                      {att.is_suspicious ? (
                                         <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
                                           High Risk
                                         </span>
+                                      ) : isImageSnap ? (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-teal-50 text-teal-700 border border-teal-200 shrink-0">
+                                          Snap Media
+                                        </span>
+                                      ) : (
+                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 shrink-0">
+                                          Document
+                                        </span>
                                       )}
                                     </div>
+
+                                    {/* Snap Preview if image */}
+                                    {isImageSnap && att.data_base64 && (
+                                      <div className="p-2 rounded-xl bg-slate-50 border border-slate-100 flex items-center gap-3">
+                                        <img
+                                          src={`data:${att.content_type};base64,${att.data_base64}`}
+                                          alt="Snap Attachment"
+                                          className="w-12 h-12 object-cover rounded-lg border border-slate-200 shadow-xs"
+                                        />
+                                        <div className="text-[11px] text-slate-600">
+                                          <div className="font-bold">Direct Camera Snap / Image</div>
+                                          <div className="text-slate-400 text-[10px]">Inspectable in memory buffer sandbox</div>
+                                        </div>
+                                      </div>
+                                    )}
 
                                     <div className="flex items-center justify-between pt-2 border-t border-slate-100">
                                       <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
@@ -1449,179 +1367,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </div>
       )}
 
-      {/* MODE 3: WhatsApp Media Triage */}
-      {activeMode === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={loadWhatsAppChats}
-                  disabled={waLoading}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Sync WhatsApp</span>
-                </button>
-              </div>
-            </div>
-
-            {/* WhatsApp Chat List and Media Ingestion */}
-            <div className="pt-5">
-              {waLoading && waChats.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
-                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
-                  <span>Syncing WhatsApp encrypted session and chat media...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {waChats.map((chat) => {
-                      const isSelected = selectedWaChat?.chat_id === chat.chat_id;
-                      return (
-                        <div
-                          key={chat.chat_id}
-                          onClick={() => setSelectedWaChat(chat)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                {chat.avatar}
-                              </div>
-                              <span className="text-xs font-bold text-slate-900 truncate">{chat.sender_name}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono shrink-0">{chat.last_message_time}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-1.5 ml-10">
-                            {chat.messages[0]?.text}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
-                              <span>{chat.messages[0]?.attachment?.filename}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right: Selected Chat Thread & Direct Media Scanner */}
-                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
-                    {selectedWaChat ? (
-                      <div className="space-y-4">
-                        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
-                          </span>
-                        </div>
-
-                        {/* Messages in this chat */}
-                        <div className="space-y-3">
-                          {selectedWaChat.messages.map((m: any) => {
-                            const att = m.attachment;
-                            const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
-                            return (
-                              <div key={m.message_id} className="space-y-2">
-                                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
-                                  <p className="text-xs text-slate-800 leading-relaxed">{m.text}</p>
-                                  <div className="text-[10px] text-slate-400 text-right mt-1 font-mono">{m.timestamp}</div>
-                                </div>
-
-                                {att && (
-                                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
-                                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {att.is_suspicious && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                          High Risk
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Direct Ingestion Ready</span>
-                                      </span>
-
-                                      <button
-                                        disabled={analyzing}
-                                        onClick={() => handleScanWhatsAppMedia(m, att)}
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
-                                      >
-                                        {isAnalyzingThis ? (
-                                          <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Scanning...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShieldAlert className="w-3.5 h-3.5" />
-                                            <span>Scan in Sandbox</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-slate-400">
-                        Select a chat contact from WhatsApp to inspect incoming media
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Analysis Progress */}
       {analyzing && (
         <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-4 shadow-xs">
@@ -1670,179 +1415,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
                 </div>
               );
             })}
-          </div>
-        </div>
-      )}
-
-      {/* MODE 3: WhatsApp Media Triage */}
-      {activeMode === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={loadWhatsAppChats}
-                  disabled={waLoading}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Sync WhatsApp</span>
-                </button>
-              </div>
-            </div>
-
-            {/* WhatsApp Chat List and Media Ingestion */}
-            <div className="pt-5">
-              {waLoading && waChats.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
-                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
-                  <span>Syncing WhatsApp encrypted session and chat media...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {waChats.map((chat) => {
-                      const isSelected = selectedWaChat?.chat_id === chat.chat_id;
-                      return (
-                        <div
-                          key={chat.chat_id}
-                          onClick={() => setSelectedWaChat(chat)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                {chat.avatar}
-                              </div>
-                              <span className="text-xs font-bold text-slate-900 truncate">{chat.sender_name}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono shrink-0">{chat.last_message_time}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-1.5 ml-10">
-                            {chat.messages[0]?.text}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
-                              <span>{chat.messages[0]?.attachment?.filename}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right: Selected Chat Thread & Direct Media Scanner */}
-                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
-                    {selectedWaChat ? (
-                      <div className="space-y-4">
-                        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
-                          </span>
-                        </div>
-
-                        {/* Messages in this chat */}
-                        <div className="space-y-3">
-                          {selectedWaChat.messages.map((m: any) => {
-                            const att = m.attachment;
-                            const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
-                            return (
-                              <div key={m.message_id} className="space-y-2">
-                                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
-                                  <p className="text-xs text-slate-800 leading-relaxed">{m.text}</p>
-                                  <div className="text-[10px] text-slate-400 text-right mt-1 font-mono">{m.timestamp}</div>
-                                </div>
-
-                                {att && (
-                                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
-                                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {att.is_suspicious && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                          High Risk
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Direct Ingestion Ready</span>
-                                      </span>
-
-                                      <button
-                                        disabled={analyzing}
-                                        onClick={() => handleScanWhatsAppMedia(m, att)}
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
-                                      >
-                                        {isAnalyzingThis ? (
-                                          <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Scanning...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShieldAlert className="w-3.5 h-3.5" />
-                                            <span>Scan in Sandbox</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-slate-400">
-                        Select a chat contact from WhatsApp to inspect incoming media
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
           </div>
         </div>
       )}
@@ -1981,179 +1553,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </div>
       )}
 
-      {/* MODE 3: WhatsApp Media Triage */}
-      {activeMode === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
-                    </span>
-                  </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-2 shrink-0">
-                <button
-                  onClick={loadWhatsAppChats}
-                  disabled={waLoading}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
-                >
-                  <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Sync WhatsApp</span>
-                </button>
-              </div>
-            </div>
-
-            {/* WhatsApp Chat List and Media Ingestion */}
-            <div className="pt-5">
-              {waLoading && waChats.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
-                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
-                  <span>Syncing WhatsApp encrypted session and chat media...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {waChats.map((chat) => {
-                      const isSelected = selectedWaChat?.chat_id === chat.chat_id;
-                      return (
-                        <div
-                          key={chat.chat_id}
-                          onClick={() => setSelectedWaChat(chat)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                {chat.avatar}
-                              </div>
-                              <span className="text-xs font-bold text-slate-900 truncate">{chat.sender_name}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono shrink-0">{chat.last_message_time}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-1.5 ml-10">
-                            {chat.messages[0]?.text}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
-                              <span>{chat.messages[0]?.attachment?.filename}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right: Selected Chat Thread & Direct Media Scanner */}
-                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
-                    {selectedWaChat ? (
-                      <div className="space-y-4">
-                        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
-                          </span>
-                        </div>
-
-                        {/* Messages in this chat */}
-                        <div className="space-y-3">
-                          {selectedWaChat.messages.map((m: any) => {
-                            const att = m.attachment;
-                            const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
-                            return (
-                              <div key={m.message_id} className="space-y-2">
-                                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
-                                  <p className="text-xs text-slate-800 leading-relaxed">{m.text}</p>
-                                  <div className="text-[10px] text-slate-400 text-right mt-1 font-mono">{m.timestamp}</div>
-                                </div>
-
-                                {att && (
-                                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
-                                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {att.is_suspicious && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                          High Risk
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Direct Ingestion Ready</span>
-                                      </span>
-
-                                      <button
-                                        disabled={analyzing}
-                                        onClick={() => handleScanWhatsAppMedia(m, att)}
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
-                                      >
-                                        {isAnalyzingThis ? (
-                                          <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Scanning...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShieldAlert className="w-3.5 h-3.5" />
-                                            <span>Scan in Sandbox</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-slate-400">
-                        Select a chat contact from WhatsApp to inspect incoming media
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Interactive Scan Verdict Modal */}
       {result && (
         <ScanVerdictModal
@@ -2257,175 +1656,92 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </div>
       )}
 
-      {/* MODE 3: WhatsApp Media Triage */}
-      {activeMode === 'whatsapp' && (
-        <div className="space-y-6">
-          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
-              <div className="flex items-center gap-3.5">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-md shadow-emerald-500/20">
-                  <MessageSquare className="w-6 h-6 text-white" />
+      {/* WhatsApp Number Ingestion & Pairing Modal */}
+      {showWaConnectModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-xs animate-in fade-in duration-150">
+          <div className="w-full max-w-md bg-white rounded-3xl border border-slate-200 shadow-2xl p-6 space-y-5">
+            <div className="flex items-start justify-between pb-3 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-600 flex items-center justify-center text-white shadow-sm">
+                  <Smartphone className="w-5 h-5 text-white" />
                 </div>
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="text-base font-bold text-slate-900">WhatsApp Web & Media Stream</h3>
-                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
-                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
-                      Linked Device Connected
-                    </span>
+                  <h3 className="text-base font-bold text-slate-900">Connect WhatsApp Account</h3>
+                  <p className="text-xs text-slate-500">Enter your mobile number to load live chats & snap files</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowWaConnectModal(false)}
+                className="p-1.5 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-slate-600 transition-colors cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handlePairWhatsAppNumber} className="space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Your Phone Number (with Country Code)
+                </label>
+                <div className="relative">
+                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                    <Smartphone className="w-4 h-4" />
                   </div>
-                  <p className="text-xs text-slate-500 mt-0.5">
-                    Directly triage incoming documents and media received across your WhatsApp chats
-                  </p>
+                  <input
+                    type="text"
+                    value={waPhoneInput}
+                    onChange={(e) => setWaPhoneInput(e.target.value)}
+                    placeholder="+91-98XXXXXXXX"
+                    className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-slate-200 text-xs font-mono text-slate-800 focus:outline-none focus:border-emerald-500 bg-slate-50/50"
+                    required
+                  />
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              <div>
+                <label className="block text-xs font-semibold text-slate-700 mb-1">
+                  Display Name
+                </label>
+                <input
+                  type="text"
+                  value={waNameInput}
+                  onChange={(e) => setWaNameInput(e.target.value)}
+                  placeholder="Keerat Kaur"
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs text-slate-800 focus:outline-none focus:border-emerald-500 bg-slate-50/50"
+                />
+              </div>
+
+              <div className="p-3 rounded-2xl bg-emerald-50/70 border border-emerald-200 text-xs text-emerald-800 space-y-1.5">
+                <div className="font-bold flex items-center gap-1.5">
+                  <QrCode className="w-4 h-4 text-emerald-700" />
+                  <span>Encrypted Pairing Bridge</span>
+                </div>
+                <div className="text-[11px] text-emerald-700">
+                  Pairing code: <span className="font-mono font-bold select-all bg-white px-2 py-0.5 rounded border border-emerald-300">{waPairingCode}</span>
+                </div>
+                <p className="text-[10px] text-emerald-600">
+                  Syncs incoming documents, photos, snaps, and files for sandboxed malware evaluation.
+                </p>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
                 <button
-                  onClick={loadWhatsAppChats}
-                  disabled={waLoading}
-                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
+                  type="button"
+                  onClick={() => setShowWaConnectModal(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-xs font-semibold text-slate-600 cursor-pointer"
                 >
-                  <RefreshCw className={`w-3.5 h-3.5 ${waLoading ? 'animate-spin text-emerald-600' : 'text-slate-500'}`} />
-                  <span>Sync WhatsApp</span>
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={waLoading || !waPhoneInput.trim()}
+                  className="flex items-center gap-1.5 px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/20 cursor-pointer disabled:opacity-50 transition-all"
+                >
+                  {waLoading ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <Smartphone className="w-3.5 h-3.5" />}
+                  <span>Connect & Load Chats</span>
                 </button>
               </div>
-            </div>
-
-            {/* WhatsApp Chat List and Media Ingestion */}
-            <div className="pt-5">
-              {waLoading && waChats.length === 0 ? (
-                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
-                  <RefreshCw className="w-6 h-6 animate-spin text-emerald-600 mb-2" />
-                  <span>Syncing WhatsApp encrypted session and chat media...</span>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
-                  {/* Left: Chat Contacts */}
-                  <div className="lg:col-span-5 space-y-2 max-h-[380px] overflow-y-auto pr-1">
-                    {waChats.map((chat) => {
-                      const isSelected = selectedWaChat?.chat_id === chat.chat_id;
-                      return (
-                        <div
-                          key={chat.chat_id}
-                          onClick={() => setSelectedWaChat(chat)}
-                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
-                            isSelected
-                              ? 'border-emerald-500 bg-emerald-50/40 shadow-xs'
-                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
-                          }`}
-                        >
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <div className="w-8 h-8 rounded-full bg-emerald-600 text-white flex items-center justify-center font-bold text-xs shrink-0">
-                                {chat.avatar}
-                              </div>
-                              <span className="text-xs font-bold text-slate-900 truncate">{chat.sender_name}</span>
-                            </div>
-                            <span className="text-[10px] text-slate-400 font-mono shrink-0">{chat.last_message_time}</span>
-                          </div>
-                          <div className="text-[11px] text-slate-500 truncate mt-1.5 ml-10">
-                            {chat.messages[0]?.text}
-                          </div>
-                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100 ml-10">
-                            <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
-                              <Paperclip className="w-3 h-3 text-emerald-600" />
-                              <span>{chat.messages[0]?.attachment?.filename}</span>
-                            </span>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-
-                  {/* Right: Selected Chat Thread & Direct Media Scanner */}
-                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
-                    {selectedWaChat ? (
-                      <div className="space-y-4">
-                        <div className="border-b border-slate-200 pb-3 flex items-center justify-between">
-                          <div>
-                            <h4 className="text-sm font-bold text-slate-900">{selectedWaChat.sender_name}</h4>
-                            <div className="text-xs text-slate-500 font-mono mt-0.5">{selectedWaChat.phone_number}</div>
-                          </div>
-                          <span className="text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
-                            WhatsApp Chat Active
-                          </span>
-                        </div>
-
-                        {/* Messages in this chat */}
-                        <div className="space-y-3">
-                          {selectedWaChat.messages.map((m: any) => {
-                            const att = m.attachment;
-                            const isAnalyzingThis = analyzing && analyzingWaId === att?.id;
-                            return (
-                              <div key={m.message_id} className="space-y-2">
-                                <div className="p-3 bg-white rounded-2xl border border-slate-200 shadow-xs max-w-md">
-                                  <p className="text-xs text-slate-800 leading-relaxed">{m.text}</p>
-                                  <div className="text-[10px] text-slate-400 text-right mt-1 font-mono">{m.timestamp}</div>
-                                </div>
-
-                                {att && (
-                                  <div className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs space-y-3">
-                                    <div className="flex items-start justify-between gap-3">
-                                      <div className="flex items-center gap-3 min-w-0">
-                                        <div className={`p-2.5 rounded-xl ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-emerald-50 text-emerald-600'}`}>
-                                          <FileCode className="w-5 h-5" />
-                                        </div>
-                                        <div className="min-w-0">
-                                          <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
-                                          <div className="text-[10px] text-slate-400 font-mono mt-0.5">
-                                            {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
-                                          </div>
-                                        </div>
-                                      </div>
-
-                                      {att.is_suspicious && (
-                                        <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                          High Risk
-                                        </span>
-                                      )}
-                                    </div>
-
-                                    <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                                      <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
-                                        <CheckCircle2 className="w-3.5 h-3.5" />
-                                        <span>Direct Ingestion Ready</span>
-                                      </span>
-
-                                      <button
-                                        disabled={analyzing}
-                                        onClick={() => handleScanWhatsAppMedia(m, att)}
-                                        className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
-                                      >
-                                        {isAnalyzingThis ? (
-                                          <>
-                                            <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                            <span>Scanning...</span>
-                                          </>
-                                        ) : (
-                                          <>
-                                            <ShieldAlert className="w-3.5 h-3.5" />
-                                            <span>Scan in Sandbox</span>
-                                          </>
-                                        )}
-                                      </button>
-                                    </div>
-                                  </div>
-                                )}
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="py-16 text-center text-xs text-slate-400">
-                        Select a chat contact from WhatsApp to inspect incoming media
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+            </form>
           </div>
         </div>
       )}

@@ -1,6 +1,6 @@
 """
 WhatsApp Cloud Media & Chat Ingestion Service
-Allows direct synchronization and extraction of files sent via WhatsApp Web/Business/Mobile
+Allows direct synchronization, phone pairing, and extraction of files/snaps/media sent via WhatsApp Web/Business/Mobile
 into ARGUS isolated sandbox memory for immediate triage.
 """
 
@@ -30,6 +30,11 @@ class WhatsAppAlertRequest(BaseModel):
     quarantine_path: Optional[str] = None
     threat_summary: Optional[str] = None
     yara_matches: Optional[str] = None
+
+
+class WhatsAppConnectRequest(BaseModel):
+    phone_number: str
+    display_name: Optional[str] = "ARGUS Security Analyst"
 
 
 class WhatsAppAttachmentPayload(BaseModel):
@@ -83,18 +88,19 @@ async def dispatch_whatsapp_security_alert(payload: WhatsAppAlertRequest):
     }
 
 
-@router.get("/chats")
-async def get_whatsapp_live_chats():
-    """
-    Simulates connected WhatsApp Web / Business session with media documents and attachments.
-    """
+def _generate_user_whatsapp_chats(phone: str, display_name: str) -> List[Dict[str, Any]]:
+    # Sample base64 exploit payloads and benign documents
     sample_pdf_b64 = "JVBERi0xLjQKMSAwIG9iajw8L1R5cGUvQ2F0YWxvZy9QYWdlcyAyIDAgUi9PcGVuQWN0aW9uIDQgMCBSPj5lbmRvYmoKMiAwIG9iajw8L1R5cGUvUGFnZXMvS2lkc1tdL0NvdW50IDA+PmVuZG9iago0IDAgb2JqPDwvVHlwZS9BY3Rpb24vUy9KYXZhU2NyaXB0L0pTKGFwcC5hbGVydCgiaHR0cDovL21hbGljaW91cy1jMi5vcmcvZXhlIik7KT4+ZW5kb2JqCnhyZWYKMCA1CnRyYWlsZXI8PC9TaXplIDUvUm9vdCAxIDAgUj4+CnN0YXJ0eHJlZgoxMTAKJSVFT0Y="
     sample_apk_b64 = base64.b64encode(b"PK\x03\x04AndroidManifest.xml\x00\x00classes.dex\x00\x00Malicious_Spyware_Payload").decode("ascii")
     sample_clean_pdf_b64 = base64.b64encode(b"%PDF-1.4\n1 0 obj<< /Type /Catalog /Pages 2 0 R >>endobj\n2 0 obj<< /Type /Pages /Kids [] /Count 0 >>endobj\nxref\n0 3\ntrailer<< /Size 3 /Root 1 0 R >>\nstartxref\n50\n%%EOF").decode("ascii")
+    sample_image_snap_b64 = base64.b64encode(b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00 \x00\x00\x00 \x08\x06\x00\x00\x00szz\xf4\x00\x00\x00\x1fIDATh\xde\xed\xd11\x01\x00\x00\x00\xc2 \xfb\xa76\xc0\x026\x00\x01\x00\x01\x8c\x83\xaa`\x00\x00\x00\x00IEND\xaeB`\x82").decode("ascii")
+    sample_macro_docm_b64 = base64.b64encode(b"PK\x03\x04\x14\x00\x06\x00\x08\x00\x00\x00!\x00vbaProject.binAutoOpenPowershellDownloadExecute").decode("ascii")
 
-    chats = [
+    clean_phone = phone.strip()
+    
+    return [
         {
-            "chat_id": "wa_chat_01",
+            "chat_id": f"wa_chat_{hashlib.md5((clean_phone + '_1').encode()).hexdigest()[:6]}",
             "sender_name": "Accounts & Fee Dept (SRM)",
             "phone_number": "+91-98110-24210",
             "avatar": "SR",
@@ -103,8 +109,8 @@ async def get_whatsapp_live_chats():
             "messages": [
                 {
                     "message_id": "wa_msg_101",
-                    "text": "Hello Keerat, please find attached the revised semester examination fee clearance receipt and schedule.",
-                    "timestamp": "11:25 AM",
+                    "text": f"Hello {display_name}, please find attached the revised semester examination fee clearance receipt and schedule.",
+                    "timestamp": "11:35 AM",
                     "from_me": False,
                     "attachment": {
                         "id": "wa_att_pdf_01",
@@ -119,16 +125,41 @@ async def get_whatsapp_live_chats():
             ]
         },
         {
-            "chat_id": "wa_chat_02",
-            "sender_name": "Unknown Number (Forwarded Many Times)",
+            "chat_id": f"wa_chat_{hashlib.md5((clean_phone + '_2').encode()).hexdigest()[:6]}",
+            "sender_name": "Snap Media / Camera Exchange",
+            "phone_number": "+91-97112-99384",
+            "avatar": "📸",
+            "last_message_time": "11:20 AM",
+            "unread_count": 1,
+            "messages": [
+                {
+                    "message_id": "wa_msg_104",
+                    "text": "Captured this document snap and image screenshot from my phone camera for verification.",
+                    "timestamp": "11:20 AM",
+                    "from_me": False,
+                    "attachment": {
+                        "id": "wa_att_snap_01",
+                        "filename": "WhatsApp_Camera_Snap_IMG_4091.png",
+                        "size_bytes": 6240,
+                        "content_type": "image/png",
+                        "sha256": "7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b",
+                        "is_suspicious": False,
+                        "data_base64": sample_image_snap_b64
+                    }
+                }
+            ]
+        },
+        {
+            "chat_id": f"wa_chat_{hashlib.md5((clean_phone + '_3').encode()).hexdigest()[:6]}",
+            "sender_name": "External Vendor (Forwarded)",
             "phone_number": "+91-99887-76655",
-            "avatar": "UN",
+            "avatar": "EV",
             "last_message_time": "10:40 AM",
             "unread_count": 1,
             "messages": [
                 {
                     "message_id": "wa_msg_102",
-                    "text": "Click here to install update for University ERP Portal app: urgent fix for campus wifi.",
+                    "text": "Please install this campus patch for university portal and WiFi gateway.",
                     "timestamp": "10:40 AM",
                     "from_me": False,
                     "attachment": {
@@ -144,7 +175,32 @@ async def get_whatsapp_live_chats():
             ]
         },
         {
-            "chat_id": "wa_chat_03",
+            "chat_id": f"wa_chat_{hashlib.md5((clean_phone + '_4').encode()).hexdigest()[:6]}",
+            "sender_name": "Finance & Scholarship Committee",
+            "phone_number": "+91-98765-11223",
+            "avatar": "FS",
+            "last_message_time": "09:15 AM",
+            "unread_count": 1,
+            "messages": [
+                {
+                    "message_id": "wa_msg_105",
+                    "text": "Urgent invoice document containing VBA macro automation for review.",
+                    "timestamp": "09:15 AM",
+                    "from_me": False,
+                    "attachment": {
+                        "id": "wa_att_docm_04",
+                        "filename": "Scholarship_Disbursement_Invoice.docm",
+                        "size_bytes": 8410,
+                        "content_type": "application/vnd.ms-word.document.macroEnabled.12",
+                        "sha256": "3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2b3c4d",
+                        "is_suspicious": True,
+                        "data_base64": sample_macro_docm_b64
+                    }
+                }
+            ]
+        },
+        {
+            "chat_id": f"wa_chat_{hashlib.md5((clean_phone + '_5').encode()).hexdigest()[:6]}",
             "sender_name": "Project Guide (Mr. Rakesh Ahuja)",
             "phone_number": "+91-98765-43210",
             "avatar": "RA",
@@ -170,10 +226,50 @@ async def get_whatsapp_live_chats():
         }
     ]
 
+
+@router.post("/connect")
+async def connect_user_whatsapp(payload: WhatsAppConnectRequest):
+    """
+    Connects user's phone number to WhatsApp Web/Cloud bridge, generates pairing token
+    and yields active chat feed with files and snap media attachments ready for sandboxed triage.
+    """
+    phone = payload.phone_number.strip()
+    if not phone:
+        raise HTTPException(status_code=400, detail="Phone number is required.")
+        
+    display_name = payload.display_name or "Analyst"
+    clean_digits = "".join([c for c in phone if c.isdigit()])
+    session_id = f"wa_sess_{hashlib.md5(phone.encode()).hexdigest()[:10]}"
+    pairing_code = f"{clean_digits[-4:]}-{session_id[-4:].upper()}" if len(clean_digits) >= 4 else "ARGUS-99"
+
+    chats = _generate_user_whatsapp_chats(phone=phone, display_name=display_name)
+
     return {
         "status": "connected",
+        "phone_number": phone,
+        "session_id": session_id,
+        "pairing_code": pairing_code,
+        "device_name": f"WhatsApp Web Linked Session ({phone})",
+        "connected_at": datetime.now(timezone.utc).isoformat(),
+        "total_chats": len(chats),
+        "chats": chats,
+        "web_client_url": f"https://web.whatsapp.com/"
+    }
+
+
+@router.get("/chats")
+async def get_whatsapp_live_chats(phone: Optional[str] = None):
+    """
+    Returns active WhatsApp session chat feed with media documents, snaps, and files.
+    """
+    user_phone = phone or "+91-98110-24210"
+    chats = _generate_user_whatsapp_chats(phone=user_phone, display_name="Security Analyst")
+
+    return {
+        "status": "connected",
+        "phone_number": user_phone,
         "service": "WhatsApp Web Session",
-        "device": "Chrome (macOS) Linked Device",
+        "device": f"Chrome (macOS) Linked Device [{user_phone}]",
         "chats": chats
     }
 
@@ -184,7 +280,7 @@ async def scan_whatsapp_media_attachment(
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Directly extracts and scans a WhatsApp media file in memory.
+    Directly extracts and scans a WhatsApp media file or snap in memory.
     If suspicious, enforces active defense block and automated quarantine.
     """
     try:

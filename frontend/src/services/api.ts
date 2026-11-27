@@ -274,8 +274,9 @@ export const api = {
     return res.json();
   },
 
-  async getWhatsAppChats(): Promise<{
+  async getWhatsAppChats(phone?: string): Promise<{
     status: string;
+    phone_number?: string;
     service: string;
     device: string;
     chats: Array<{
@@ -302,8 +303,35 @@ export const api = {
       }>;
     }>;
   }> {
-    const res = await fetch(buildUrl('/whatsapp/chats'));
+    const url = phone ? `/whatsapp/chats?phone=${encodeURIComponent(phone)}` : '/whatsapp/chats';
+    const res = await fetch(buildUrl(url));
     if (!res.ok) throw new Error('Failed to fetch WhatsApp chats');
+    return res.json();
+  },
+
+  async connectWhatsAppNumber(phoneNumber: string, displayName?: string): Promise<{
+    status: string;
+    phone_number: string;
+    session_id: string;
+    pairing_code: string;
+    device_name: string;
+    connected_at: string;
+    total_chats: number;
+    chats: any[];
+    web_client_url: string;
+  }> {
+    const res = await fetch(buildUrl('/whatsapp/connect'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        phone_number: phoneNumber,
+        display_name: displayName || 'Analyst',
+      }),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to pair WhatsApp number' }));
+      throw new Error(err.detail || 'Failed to pair WhatsApp number');
+    }
     return res.json();
   },
 
