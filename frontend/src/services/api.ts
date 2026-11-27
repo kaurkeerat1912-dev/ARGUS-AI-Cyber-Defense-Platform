@@ -274,6 +274,59 @@ export const api = {
     return res.json();
   },
 
+  async getWhatsAppChats(): Promise<{
+    status: string;
+    service: string;
+    device: string;
+    chats: Array<{
+      chat_id: string;
+      sender_name: string;
+      phone_number: string;
+      avatar: string;
+      last_message_time: string;
+      unread_count: number;
+      messages: Array<{
+        message_id: string;
+        text: string;
+        timestamp: string;
+        from_me: boolean;
+        attachment?: {
+          id: string;
+          filename: string;
+          size_bytes: number;
+          content_type: string;
+          sha256: string;
+          is_suspicious: boolean;
+          data_base64: string;
+        };
+      }>;
+    }>;
+  }> {
+    const res = await fetch(buildUrl('/whatsapp/chats'));
+    if (!res.ok) throw new Error('Failed to fetch WhatsApp chats');
+    return res.json();
+  },
+
+  async scanWhatsAppMedia(payload: {
+    message_id: string;
+    filename: string;
+    data_base64: string;
+    content_type?: string;
+    sender_name?: string;
+    sender_phone?: string;
+  }): Promise<InvestigationSummary> {
+    const res = await fetch(buildUrl('/whatsapp/scan-media'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to scan WhatsApp media' }));
+      throw new Error(err.detail || 'Failed to scan WhatsApp media');
+    }
+    return res.json();
+  },
+
   // Health
   async getSystemHealth(): Promise<SystemHealth> {
     const res = await fetch(buildUrl('/health'));
