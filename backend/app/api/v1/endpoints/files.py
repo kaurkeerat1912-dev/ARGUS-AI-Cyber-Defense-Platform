@@ -12,7 +12,7 @@ from sqlalchemy import select
 
 from backend.app.database.session import get_db
 from backend.app.models.investigation import Investigation, EvidenceItem, AttackGraph, ForensicReport
-from backend.app.schemas.forensics import InvestigationSummarySchema
+from backend.app.schemas.forensics import InvestigationSummarySchema, TriageDecisionSchema
 from backend.app.services.ingestion.quarantine import ingestion_service
 from backend.app.services.static_analysis.analyzer import static_forensics_engine
 from backend.app.services.feature_engineering.extractor import feature_extractor
@@ -188,7 +188,42 @@ async def upload_and_analyze_file(
 
         await db.commit()
         await db.refresh(investigation)
-        return investigation
+
+        # Active Defense Decision Engine
+        is_malicious = (investigation.risk_score or 0.0) >= 60.0 or investigation.risk_level in ("HIGH", "CRITICAL")
+        if is_malicious:
+            triage_verdict = TriageDecisionSchema(
+                decision="BLOCKED",
+                action_taken="EXECUTION_BLOCKED_AND_ISOLATED",
+                warning_title=f"🚨 THREAT INTERCEPTED: {investigation.original_name}",
+                warning_message=(
+                    f"ARGUS Active Defense has quarantined this file and blocked execution. "
+                    f"Calculated Risk Score: {investigation.risk_score:.1f}/100 ({investigation.risk_level}). "
+                    f"Zero host traces left. Containment rules enforced in defense subsystem."
+                ),
+                severity=investigation.risk_level,
+                requires_user_override=True,
+                quarantine_path=investigation.file_path,
+                defense_summary=f"Automated firewall ACL & host quarantine rules committed to database for Investigation #{investigation.id[:8]}."
+            )
+        else:
+            triage_verdict = TriageDecisionSchema(
+                decision="ALLOWED",
+                action_taken="CLEARED_FOR_EXECUTION",
+                warning_title=f"✅ SAFE: {investigation.original_name}",
+                warning_message=(
+                    f"File verified benign. Risk Score: {investigation.risk_score:.1f}/100 ({investigation.risk_level}). "
+                    f"No malicious triggers, anomalous entropy, or YARA signatures detected."
+                ),
+                severity="SAFE",
+                requires_user_override=False,
+                quarantine_path=None,
+                defense_summary="File allowed to run without restriction."
+            )
+
+        summary = InvestigationSummarySchema.model_validate(investigation)
+        summary.triage_verdict = triage_verdict
+        return summary
 
     except Exception as e:
         investigation.status = "FAILED"

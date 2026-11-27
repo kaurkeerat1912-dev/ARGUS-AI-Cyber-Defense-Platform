@@ -100,6 +100,17 @@ class ForensicReportSchema(BaseModel):
     created_at: datetime
 
 
+class TriageDecisionSchema(BaseModel):
+    decision: str  # BLOCKED | ALLOWED
+    action_taken: str  # e.g., "EXECUTION_BLOCKED_AND_ISOLATED" or "CLEARED_FOR_EXECUTION"
+    warning_title: str
+    warning_message: str
+    severity: str  # CRITICAL | HIGH | MEDIUM | SAFE
+    requires_user_override: bool
+    quarantine_path: Optional[str] = None
+    defense_summary: Optional[str] = None
+
+
 class InvestigationSummarySchema(BaseModel):
     id: str
     original_name: str
@@ -115,6 +126,7 @@ class InvestigationSummarySchema(BaseModel):
     created_at: datetime
     completed_at: Optional[datetime] = None
     summary: Optional[str] = None
+    triage_verdict: Optional[TriageDecisionSchema] = None
 
     model_config = ConfigDict(from_attributes=True)
 

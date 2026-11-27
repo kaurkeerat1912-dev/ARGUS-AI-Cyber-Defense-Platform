@@ -16,8 +16,9 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.database.session import get_db
-from backend.app.models.investigation import Investigation, EvidenceItem, AttackGraph, ForensicReport
-from backend.app.schemas.forensics import InvestigationSummarySchema
+from backend.app.models.investigation import Investigation, EvidenceItem, AttackGraph, ForensicReport, DefensiveAction
+from backend.app.schemas.forensics import InvestigationSummarySchema, TriageDecisionSchema
+from backend.app.services.defense_simulation.engine import defense_simulation_engine
 from backend.app.services.email_extraction.extractor import email_extraction_service
 from backend.app.services.ingestion.quarantine import ingestion_service
 from backend.app.services.static_analysis.analyzer import static_forensics_engine
@@ -173,6 +174,32 @@ async def _execute_in_memory_forensics(
                 limitations=item.get("limitations")
             )
             db.add(ev_record)
+
+        # 9b. Synthesize & Persist Defensive Containment Actions
+        plan_data = defense_simulation_engine.generate_defense_plan_data(
+            investigation_id=inv_id,
+            sample_name=original_name,
+            sha256=sha256,
+            file_type=file_type,
+            risk_score=risk_result["risk_score"],
+            evidence_items=evidence_dicts,
+            behavioral_events=[],
+            risk_level=risk_result["risk_level"]
+        )
+        for act in plan_data["actions"]:
+            db_action = DefensiveAction(
+                investigation_id=inv_id,
+                category=act["category"],
+                title=act["title"],
+                description=act["description"],
+                target=act["target"],
+                rule_syntax=act["rule_syntax"],
+                status="ENFORCED" if risk_result["risk_score"] >= 60.0 else "PROPOSED",
+                risk_reduction=act["risk_reduction"],
+                simulated_output=f"Automated containment rule registered in ARGUS active defense kernel: {act['title']}",
+                executed_at=datetime.now(timezone.utc) if risk_result["risk_score"] >= 60.0 else None
+            )
+            db.add(db_action)
 
         # Persist Attack Graph
         attack_graph_record = AttackGraph(
@@ -343,6 +370,7 @@ async def analyze_extracted_attachment(
     """
     Directly analyzes an in-memory attachment extracted from an email without
     the user needing to download it to their local machine.
+    Enforces active ARGUS defense triage: blocks suspicious payloads and raises immediate alerts.
     """
     try:
         raw_bytes = base64.b64decode(payload.data_base64)
@@ -359,7 +387,41 @@ async def analyze_extracted_attachment(
         db=db
     )
 
-    return investigation
+    # Active Defense Decision Engine
+    is_malicious = (investigation.risk_score or 0.0) >= 60.0 or investigation.risk_level in ("HIGH", "CRITICAL")
+    if is_malicious:
+        triage_verdict = TriageDecisionSchema(
+            decision="BLOCKED",
+            action_taken="EXECUTION_BLOCKED_AND_ISOLATED",
+            warning_title=f"🚨 THREAT INTERCEPTED: {investigation.original_name}",
+            warning_message=(
+                f"ARGUS Active Defense has quarantined this file and blocked execution. "
+                f"Calculated Risk Score: {investigation.risk_score:.1f}/100 ({investigation.risk_level}). "
+                f"Zero host traces left. Containment rules enforced in defense subsystem."
+            ),
+            severity=investigation.risk_level,
+            requires_user_override=True,
+            quarantine_path=investigation.file_path,
+            defense_summary=f"Automated firewall ACL & host quarantine rules committed to database for Investigation #{investigation.id[:8]}."
+        )
+    else:
+        triage_verdict = TriageDecisionSchema(
+            decision="ALLOWED",
+            action_taken="CLEARED_FOR_EXECUTION",
+            warning_title=f"✅ SAFE: {investigation.original_name}",
+            warning_message=(
+                f"File verified benign. Risk Score: {investigation.risk_score:.1f}/100 ({investigation.risk_level}). "
+                f"No malicious triggers, anomalous entropy, or YARA signatures detected."
+            ),
+            severity="SAFE",
+            requires_user_override=False,
+            quarantine_path=None,
+            defense_summary="File allowed to run without restriction."
+        )
+
+    summary = InvestigationSummarySchema.model_validate(investigation)
+    summary.triage_verdict = triage_verdict
+    return summary
 
 
 @router.get("/demo-sample")

@@ -105,6 +105,17 @@ export interface AttackGraphData {
   created_at: string;
 }
 
+export interface TriageDecision {
+  decision: 'BLOCKED' | 'ALLOWED';
+  action_taken: string;
+  warning_title: string;
+  warning_message: string;
+  severity: 'CRITICAL' | 'HIGH' | 'MEDIUM' | 'SAFE';
+  requires_user_override: boolean;
+  quarantine_path?: string | null;
+  defense_summary?: string | null;
+}
+
 export interface InvestigationSummary {
   id: string;
   original_name: string;
@@ -120,6 +131,7 @@ export interface InvestigationSummary {
   created_at: string;
   completed_at?: string;
   summary?: string;
+  triage_verdict?: TriageDecision;
 }
 
 export interface InvestigationDetail extends InvestigationSummary {
