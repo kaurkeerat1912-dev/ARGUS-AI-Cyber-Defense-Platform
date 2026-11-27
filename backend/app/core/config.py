@@ -60,6 +60,11 @@ class Settings(BaseSettings):
     OLLAMA_MODEL: str = "mistral:latest"
     OLLAMA_TIMEOUT_SECONDS: int = 45
 
+    # Google Gmail OAuth 2.0 Credentials
+    GOOGLE_CLIENT_ID: str = ""
+    GOOGLE_CLIENT_SECRET: str = ""
+    GOOGLE_REDIRECT_URI: str = "http://localhost:8000/api/v1/email/gmail/oauth/callback"
+
     model_config = SettingsConfigDict(
         env_file=str(Path(__file__).resolve().parents[3] / ".env"),
         env_file_encoding="utf-8",

@@ -17,6 +17,7 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
 from google.auth.transport.requests import Request
+from backend.app.core.config import settings
 
 # ARGUS storage location for OAuth tokens (secure local session token storage)
 TOKENS_DIR = Path(__file__).resolve().parents[4] / "data" / "oauth_tokens"
@@ -39,11 +40,11 @@ class GmailOAuthService:
 
     def get_client_credentials(self) -> Dict[str, str]:
         """
-        Retrieves Google Client ID & Secret from environment variables or settings.
+        Retrieves Google Client ID & Secret from settings or environment variables.
         """
-        client_id = os.getenv("GOOGLE_CLIENT_ID", "")
-        client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
-        redirect_uri = os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/email/gmail/oauth/callback")
+        client_id = settings.GOOGLE_CLIENT_ID or os.getenv("GOOGLE_CLIENT_ID", "")
+        client_secret = settings.GOOGLE_CLIENT_SECRET or os.getenv("GOOGLE_CLIENT_SECRET", "")
+        redirect_uri = settings.GOOGLE_REDIRECT_URI or os.getenv("GOOGLE_REDIRECT_URI", "http://localhost:8000/api/v1/email/gmail/oauth/callback")
         return {
             "client_id": client_id,
             "client_secret": client_secret,
