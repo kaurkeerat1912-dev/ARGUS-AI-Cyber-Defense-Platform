@@ -15,13 +15,11 @@ import {
   Check,
   Sparkles,
   Mail,
-  Inbox,
   FileText,
   Globe,
   ExternalLink,
   Lock,
-  Layers,
-  Download,
+  Link as LinkIcon,
 } from 'lucide-react';
 import { api } from '../services/api';
 import { InvestigationSummary, EvidenceItem, EmailExtractionResult, EmailAttachment } from '../types';
@@ -60,9 +58,8 @@ export const Investigate: React.FC<InvestigateProps> = ({
   // Email Extraction State
   const [emailResult, setEmailResult] = useState<EmailExtractionResult | null>(null);
   const [extractingEmail, setExtractingEmail] = useState(false);
-  const [showPasteModal, setShowPasteModal] = useState(false);
-  const [rawPastedEmail, setRawPastedEmail] = useState('');
   const [analyzingAttachmentId, setAnalyzingAttachmentId] = useState<string | null>(null);
+  const [attachmentLinkUrl, setAttachmentLinkUrl] = useState('');
 
   const inputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
@@ -126,18 +123,17 @@ export const Investigate: React.FC<InvestigateProps> = ({
     }
   };
 
-  const handleParsePastedEmail = async () => {
-    if (!rawPastedEmail.trim()) return;
+  const handleFetchFromUrl = async () => {
+    if (!attachmentLinkUrl.trim()) return;
     try {
       setExtractingEmail(true);
       setError(null);
-      const res = await api.extractEmail({ raw_email: rawPastedEmail });
+      const res = await api.extractEmail({ email_url: attachmentLinkUrl.trim() });
       setEmailResult(res);
-      setShowPasteModal(false);
-      setRawPastedEmail('');
+      setAttachmentLinkUrl('');
       setActiveMode('email');
     } catch (err: any) {
-      setError(err.message || 'Failed to parse raw email text');
+      setError(err.message || 'Failed to fetch email attachment from link');
     } finally {
       setExtractingEmail(false);
     }
@@ -220,6 +216,24 @@ export const Investigate: React.FC<InvestigateProps> = ({
 
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleSelectFile(e.dataTransfer.files[0]);
+      return;
+    }
+
+    // Direct Webmail Drag: check if a URL or link was dropped from Gmail / Outlook tab
+    const uriList = e.dataTransfer.getData('text/uri-list');
+    const plainText = e.dataTransfer.getData('text/plain');
+    const targetUrl = uriList || (plainText.startsWith('http') ? plainText : '');
+
+    if (targetUrl) {
+      setActiveMode('email');
+      setAttachmentLinkUrl(targetUrl);
+      api.extractEmail({ email_url: targetUrl })
+        .then((res) => {
+          setEmailResult(res);
+        })
+        .catch((err) => {
+          setError(err.message || 'Failed to fetch dropped attachment URL');
+        });
     }
   };
 
@@ -282,7 +296,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
             </span>
           </div>
           <p className="text-xs text-slate-500 mt-1">
-            Safely inspect suspicious PDFs, binaries, macros, scripts, and email attachments without executing or downloading untrusted files.
+            Safely inspect suspicious files and email attachments directly in isolated memory without downloading to your computer.
           </p>
         </div>
 
@@ -321,7 +335,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
             className="px-3 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
           >
             <Mail className="w-3.5 h-3.5" />
-            <span>Phishing Email Sample</span>
+            <span>Test Email Attachment</span>
           </button>
         </div>
       </div>
@@ -337,7 +351,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
           }`}
         >
           <Upload className="w-4 h-4" />
-          <span>Direct File Drag & Drop</span>
+          <span>Local File Upload</span>
         </button>
 
         <button
@@ -349,9 +363,9 @@ export const Investigate: React.FC<InvestigateProps> = ({
           }`}
         >
           <Mail className="w-4 h-4 text-indigo-600" />
-          <span>Email Attachment Extractor (Direct Ingestion)</span>
-          <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-600 font-semibold border border-indigo-200">
-            No Download Needed
+          <span>Email Attachment (Bina Download Kiye Direct Drag & Drop)</span>
+          <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+            Zero Local Download
           </span>
         </button>
       </div>
@@ -401,7 +415,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
                   </div>
                 )}
                 <div className="text-[11px] text-slate-400 pt-2 font-mono">
-                  Click or drag another file to replace (or drop .eml / .msg to extract attachments)
+                  Click or drag another file to replace (or drop .eml / .msg to extract email attachments)
                 </div>
               </div>
             ) : (
@@ -437,10 +451,10 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </div>
       )}
 
-      {/* MODE 2: Email Attachment Extractor (Direct Drag & Drop) */}
+      {/* MODE 2: Email Attachment Extractor (Bina Download Kiye Direct Drag & Drop) */}
       {activeMode === 'email' && (
         <div className="space-y-6">
-          {/* Email Drop Zone */}
+          {/* Email Direct Drop Zone */}
           <div
             onDragOver={(e) => {
               e.preventDefault();
@@ -452,21 +466,31 @@ export const Investigate: React.FC<InvestigateProps> = ({
               setDragActive(false);
               if (e.dataTransfer.files && e.dataTransfer.files[0]) {
                 handleExtractEmailFile(e.dataTransfer.files[0]);
+                return;
+              }
+              const uriList = e.dataTransfer.getData('text/uri-list');
+              const plainText = e.dataTransfer.getData('text/plain');
+              const targetUrl = uriList || (plainText.startsWith('http') ? plainText : '');
+              if (targetUrl) {
+                setAttachmentLinkUrl(targetUrl);
+                api.extractEmail({ email_url: targetUrl })
+                  .then((res) => setEmailResult(res))
+                  .catch((err) => setError(err.message));
               }
             }}
             onClick={() => emailInputRef.current?.click()}
             className={`p-10 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer bg-white shadow-xs ${
               dragActive
-                ? 'border-purple-500 bg-purple-50/60 scale-[1.01]'
+                ? 'border-indigo-500 bg-indigo-50/60 scale-[1.01]'
                 : emailResult
-                ? 'border-purple-300 bg-purple-50/20'
-                : 'border-slate-300 hover:border-purple-400 hover:bg-purple-50/30'
+                ? 'border-indigo-300 bg-indigo-50/20'
+                : 'border-slate-300 hover:border-indigo-400 hover:bg-indigo-50/20'
             }`}
           >
             <input
               ref={emailInputRef}
               type="file"
-              accept=".eml,.msg,message/rfc822"
+              accept=".eml,.msg,message/rfc822,*/*"
               onChange={(e) => {
                 if (e.target.files && e.target.files[0]) {
                   handleExtractEmailFile(e.target.files[0]);
@@ -475,61 +499,71 @@ export const Investigate: React.FC<InvestigateProps> = ({
               className="hidden"
             />
 
-            <div className="w-14 h-14 rounded-2xl border border-purple-100 bg-purple-50 flex items-center justify-center mx-auto mb-3 text-purple-600 shadow-xs">
-              <Mail className="w-7 h-7 text-purple-600" />
+            <div className="w-14 h-14 rounded-2xl border border-indigo-100 bg-indigo-50 flex items-center justify-center mx-auto mb-3 text-indigo-600 shadow-xs">
+              <Mail className="w-7 h-7 text-indigo-600" />
             </div>
 
             <div className="text-base font-bold text-slate-900">
-              Drag & Drop an Email (.eml, .msg) directly from your mail client or webmail
+              Drag & Drop Email (.eml, .msg) ya seedha Email Attachment yahan drop karein
             </div>
             <p className="text-xs text-slate-500 mt-1 max-w-xl mx-auto">
-              Extracts and isolates embedded file attachments in secure memory. You can inspect and analyze attachments directly in the sandbox without downloading them to your computer.
+              File aapke computer par save ya download <strong>nahi</strong> hogi. Attachment seedha ARGUS ke secure isolated memory sandbox me khul kar scan hogi.
             </p>
 
-            <div className="flex items-center justify-center gap-3 mt-4 pt-2 border-t border-slate-100">
+            <div className="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-slate-100">
               <button
                 type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   handleLoadDemoEmail();
                 }}
-                className="px-3.5 py-1.5 rounded-xl border border-purple-200 bg-purple-50 hover:bg-purple-100 text-purple-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
+                className="px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
               >
                 <Sparkles className="w-3.5 h-3.5" />
-                <span>Load Demo Phishing Email</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowPasteModal(true);
-                }}
-                className="px-3.5 py-1.5 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5"
-              >
-                <FileText className="w-3.5 h-3.5 text-slate-500" />
-                <span>Paste Raw Email Source</span>
+                <span>⚡ Test with Real Email Attachment (Invoice PDF Exploit)</span>
               </button>
             </div>
           </div>
 
+          {/* Quick Attachment Link Ingestion (Optional helper) */}
+          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-3 text-xs">
+            <div className="flex items-center gap-2 text-slate-600 shrink-0 font-semibold">
+              <LinkIcon className="w-4 h-4 text-indigo-600" />
+              <span>Email Attachment Link:</span>
+            </div>
+            <input
+              type="text"
+              value={attachmentLinkUrl}
+              onChange={(e) => setAttachmentLinkUrl(e.target.value)}
+              placeholder="Paste attachment link directly from Gmail / Outlook / Drive..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+            />
+            <button
+              onClick={handleFetchFromUrl}
+              disabled={!attachmentLinkUrl.trim() || extractingEmail}
+              className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shrink-0 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
+            >
+              Scan from Link
+            </button>
+          </div>
+
           {/* Email Extraction Loading */}
           {extractingEmail && (
-            <div className="p-6 rounded-3xl border border-purple-200 bg-purple-50/50 flex items-center justify-center gap-3 text-purple-800 text-sm font-semibold">
-              <RefreshCw className="w-5 h-5 animate-spin text-purple-600" />
-              <span>Parsing email MIME headers and extracting in-memory attachments...</span>
+            <div className="p-6 rounded-3xl border border-indigo-200 bg-indigo-50/50 flex items-center justify-center gap-3 text-indigo-800 text-sm font-semibold shadow-xs">
+              <RefreshCw className="w-5 h-5 animate-spin text-indigo-600" />
+              <span>Extracting file attachments in secure memory buffer (Zero local downloads)...</span>
             </div>
           )}
 
-          {/* Extracted Email Details & Attachments View */}
+          {/* Extracted Attachments View */}
           {emailResult && !extractingEmail && (
             <div className="p-6 rounded-3xl border border-slate-200 bg-white space-y-6 shadow-xs">
               {/* Email Meta Card */}
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 pb-4 border-b border-slate-100">
                 <div className="space-y-1">
                   <div className="flex items-center gap-2">
-                    <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded-md bg-purple-50 text-purple-700 border border-purple-200">
-                      {emailResult.email_format}
+                    <span className="text-[10px] uppercase font-bold font-mono px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-200">
+                      Email Ingested
                     </span>
                     <span className="text-xs text-slate-400 font-mono">{emailResult.original_name}</span>
                   </div>
@@ -543,16 +577,9 @@ export const Investigate: React.FC<InvestigateProps> = ({
                       <span className="font-semibold text-slate-400">To: </span>
                       <span className="font-mono text-slate-700">{emailResult.recipient}</span>
                     </div>
-                    {emailResult.date && (
-                      <div>
-                        <span className="font-semibold text-slate-400">Date: </span>
-                        <span className="text-slate-500">{emailResult.date}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
 
-                {/* Security Badges */}
                 <div className="flex flex-wrap md:flex-col items-end gap-2 shrink-0">
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-semibold text-slate-500">SPF:</span>
@@ -581,12 +608,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
                     </span>
                   </div>
 
-                  {emailResult.originating_ip && (
-                    <div className="text-[11px] font-mono text-slate-500 bg-slate-50 px-2 py-1 rounded-lg border border-slate-100">
-                      Originating IP: <span className="font-semibold text-slate-800">{emailResult.originating_ip}</span>
-                    </div>
-                  )}
-
                   <button
                     onClick={() => setEmailResult(null)}
                     className="text-xs text-slate-400 hover:text-slate-600 underline pt-1 cursor-pointer"
@@ -596,45 +617,23 @@ export const Investigate: React.FC<InvestigateProps> = ({
                 </div>
               </div>
 
-              {/* Suspicious URLs Warning Banner */}
-              {emailResult.embedded_urls && emailResult.embedded_urls.length > 0 && (
-                <div className="p-4 rounded-2xl bg-amber-50 border border-amber-200 space-y-2">
-                  <div className="flex items-center gap-2 text-xs font-bold text-amber-900">
-                    <Globe className="w-4 h-4 text-amber-600" />
-                    <span>Embedded Hyperlinks Detected in Email Body ({emailResult.embedded_urls.length})</span>
-                  </div>
-                  <div className="space-y-1">
-                    {emailResult.embedded_urls.map((u, i) => (
-                      <div key={i} className="flex items-center justify-between text-xs font-mono bg-white p-2 rounded-xl border border-amber-100">
-                        <span className="text-slate-700 truncate max-w-xl">{u.url}</span>
-                        {u.is_suspicious && (
-                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                            Suspicious / Phishing Indicator
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* Extracted File Attachments */}
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
-                    <h4 className="text-sm font-bold text-slate-900">Extracted In-Memory File Attachments</h4>
-                    <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-bold border border-indigo-200">
-                      {emailResult.attachments.length} Found
+                    <h4 className="text-sm font-bold text-slate-900">Extracted File Attachments ({emailResult.attachments.length})</h4>
+                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
+                      Isolated in Memory
                     </span>
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Analyze directly without downloading to local disk
+                    Bina download kiye seedha scan karein
                   </span>
                 </div>
 
                 {emailResult.attachments.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-100">
-                    No binary file attachments found in this email message.
+                    Is email me koi attached file nahi mili.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -665,29 +664,27 @@ export const Investigate: React.FC<InvestigateProps> = ({
 
                               {att.is_suspicious && (
                                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-rose-50 text-rose-700 border border-rose-200 shrink-0">
-                                  High Risk Extension
+                                  High Risk File
                                 </span>
                               )}
                             </div>
 
-                            <div className="mt-2 p-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-mono text-slate-500 space-y-0.5">
-                              <div className="truncate">
-                                <span className="text-slate-400 font-semibold">SHA-256: </span>
-                                <span className="text-slate-800">{att.sha256}</span>
-                              </div>
+                            <div className="mt-2 p-2 rounded-xl bg-slate-50 border border-slate-100 text-[10px] font-mono text-slate-500">
+                              <span className="text-slate-400 font-semibold">SHA-256: </span>
+                              <span className="text-slate-800">{att.sha256.substring(0, 24)}...</span>
                             </div>
                           </div>
 
                           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between gap-2">
                             <span className="text-[10px] text-emerald-700 font-semibold flex items-center gap-1">
                               <CheckCircle2 className="w-3.5 h-3.5" />
-                              <span>Isolated in Memory</span>
+                              <span>Ready for Sandbox</span>
                             </span>
 
                             <button
                               disabled={analyzing}
                               onClick={() => handleAnalyzeExtractedAttachment(att)}
-                              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
+                              className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all cursor-pointer ${
                                 isAnalyzingThis
                                   ? 'bg-indigo-100 text-indigo-700'
                                   : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-xs active:scale-95'
@@ -696,12 +693,12 @@ export const Investigate: React.FC<InvestigateProps> = ({
                               {isAnalyzingThis ? (
                                 <>
                                   <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                                  <span>Analyzing...</span>
+                                  <span>Scanning...</span>
                                 </>
                               ) : (
                                 <>
                                   <ShieldAlert className="w-3.5 h-3.5 text-white" />
-                                  <span>Analyze In Sandbox</span>
+                                  <span>Scan in Sandbox</span>
                                 </>
                               )}
                             </button>
@@ -714,64 +711,6 @@ export const Investigate: React.FC<InvestigateProps> = ({
               </div>
             </div>
           )}
-        </div>
-      )}
-
-      {/* Paste Raw Email Modal */}
-      {showPasteModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-xs p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <div className="flex items-center gap-2 font-bold text-slate-900 text-base">
-                <FileText className="w-5 h-5 text-purple-600" />
-                <span>Paste Raw RFC 822 Email Source / MIME Headers</span>
-              </div>
-              <button
-                onClick={() => setShowPasteModal(false)}
-                className="text-slate-400 hover:text-slate-600 text-xs font-semibold cursor-pointer"
-              >
-                Cancel
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-500">
-              Copy the raw email source from Gmail ("Show original") or Outlook ("View message source") and paste below to extract all attachments in-memory.
-            </p>
-
-            <textarea
-              rows={8}
-              value={rawPastedEmail}
-              onChange={(e) => setRawPastedEmail(e.target.value)}
-              placeholder="From: sender@domain.com&#10;To: recipient@corp.com&#10;Subject: Urgent Document&#10;Content-Type: multipart/mixed; boundary=...&#10;&#10;--boundary..."
-              className="w-full p-3 rounded-2xl border border-slate-200 bg-slate-50 font-mono text-xs text-slate-800 focus:outline-none focus:border-purple-500 focus:bg-white resize-none"
-            />
-
-            <div className="flex items-center justify-end gap-3 pt-2">
-              <button
-                onClick={() => setShowPasteModal(false)}
-                className="px-4 py-2 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-100 cursor-pointer"
-              >
-                Close
-              </button>
-              <button
-                disabled={!rawPastedEmail.trim() || extractingEmail}
-                onClick={handleParsePastedEmail}
-                className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-semibold cursor-pointer disabled:opacity-50"
-              >
-                {extractingEmail ? (
-                  <>
-                    <RefreshCw className="w-4 h-4 animate-spin" />
-                    <span>Extracting...</span>
-                  </>
-                ) : (
-                  <>
-                    <Mail className="w-4 h-4" />
-                    <span>Extract Attachments</span>
-                  </>
-                )}
-              </button>
-            </div>
-          </div>
         </div>
       )}
 

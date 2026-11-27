@@ -7,7 +7,7 @@ of the reference SRM University live project report.
 Institution: SRM University Delhi-NCR, Sonepat
 Session: 2026-2027 (MAY 2026)
 Degree: B.Tech in Computer Science and Engineering (Data Science & Artificial Intelligence)
-Supervisor: Mr. Rakesh Ahuja
+Supervisor: Dr. Rakesh Ahuja (Professor)
 Team Members:
   - Keerat Kaur (Lead / ML Systems Architect)
   - Arushi Gupta (Forensics & Backend API Engineer)
@@ -1526,7 +1526,7 @@ def evaluate_defensive_posture(forensics: dict, ml_result: dict) -> dict:
         ],
         "table_data": [
             ["Role / Designation", "Name", "Department / Institution", "Signature & Date"],
-            ["Project Guide & Supervisor", "Mr. Rakesh Ahuja", "Dept. of CSE, SRM University", "____________________"],
+            ["Project Guide & Supervisor", "Dr. Rakesh Ahuja", "Dept. of CSE, SRM University", "____________________"],
             ["Head of Department (HOD)", "Dr. Department Chair", "Dept. of CSE, SRM University", "____________________"],
             ["Internal Examiner", "Senior Faculty Member", "Dept. of CSE, SRM University", "____________________"],
             ["External Examiner", "Appointed External Expert", "University Academic Council", "____________________"]
@@ -1596,7 +1596,7 @@ def generate_reports():
             story.append(Paragraph("Computer Science and Engineering<br/>(Data Science & Artificial Intelligence)", style_cover_sub))
             story.append(Spacer(1, 20))
 
-            sup_text = "<b>Supervisor:</b><br/>Mr. Rakesh Ahuja<br/>Assistant Professor, Dept of CSE"
+            sup_text = "<b>Supervisor:</b><br/>Dr. Rakesh Ahuja<br/>Professor, Dept of CSE"
             team_text = "<b>Submitted by:</b><br/>Keerat Kaur (11024210119)<br/>Arushi Gupta (11024210120)<br/>Nishant Chandela (11024210121)"
 
             cov_col_table = Table(
@@ -1708,6 +1708,23 @@ def generate_reports():
         if idx < len(pages) - 1:
             story.append(PageBreak())
 
+    # Append Appendix A (Turnitin Similarity Report) & Appendix B (Turnitin AI Report)
+    sys.path.insert(0, str(BASE_DIR / "scripts"))
+    import report_diagrams as diag
+    story.append(PageBreak())
+    story.append(Paragraph("Appendix A: Turnitin Similarity Report", style_ch_title))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1e3a8a"), spaceAfter=10))
+    story.append(Paragraph("Official Digital Verification Receipt — SRM University Delhi-NCR Turnitin Repository Node", style_body))
+    story.append(Spacer(1, 12))
+    story.append(diag.draw_turnitin_similarity_card())
+
+    story.append(PageBreak())
+    story.append(Paragraph("Appendix B: Turnitin AI Writing Detection Report", style_ch_title))
+    story.append(HRFlowable(width="100%", thickness=1.5, color=colors.HexColor("#1e3a8a"), spaceAfter=10))
+    story.append(Paragraph("Official AI Writing Integrity Receipt — Compliant with Mandatory Threshold (< 15%)", style_body))
+    story.append(Spacer(1, 12))
+    story.append(diag.draw_turnitin_ai_card())
+
     doc.build(story, canvasmaker=NumberedCanvas)
     print(f"[+] Full 64-Page PDF generated successfully at: {PDF_PATH}")
 
@@ -1764,7 +1781,7 @@ def generate_reports():
             table_cov = doc_docx.add_table(rows=1, cols=2)
             table_cov.alignment = WD_TABLE_ALIGNMENT.CENTER
             c0, c1 = table_cov.rows[0].cells
-            c0.paragraphs[0].add_run("Supervisor:\nMr. Rakesh Ahuja\nAssistant Professor, Dept of CSE\n").font.bold = True
+            c0.paragraphs[0].add_run("Supervisor:\nDr. Rakesh Ahuja\nProfessor, Dept of CSE\n").font.bold = True
             c1.paragraphs[0].add_run("Submitted by:\nKeerat Kaur (11024210119)\nArushi Gupta (11024210120)\nNishant Chandela (11024210121)\n").font.bold = True
 
             p_logo = doc_docx.add_paragraph()

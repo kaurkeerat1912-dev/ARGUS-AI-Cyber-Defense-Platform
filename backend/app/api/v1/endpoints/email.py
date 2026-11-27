@@ -2,19 +2,20 @@
 Email Attachment Extractor & Direct Ingestion Endpoints
 Permits extracting and analyzing file attachments directly from .eml / .msg emails
 without requiring the user to download the files to their local disk.
+Zero raw code required—pure automated in-memory file extraction and forensic triage.
 """
 
 import base64
 import io
+import json
 import urllib.request
-from typing import Optional, Dict, Any
+from typing import Optional, Dict, Any, List
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, UploadFile, File, Form, HTTPException, Request
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from backend.app.database.session import get_db
-import json
 from backend.app.models.investigation import Investigation, EvidenceItem, AttackGraph, ForensicReport
 from backend.app.schemas.forensics import InvestigationSummarySchema
 from backend.app.services.email_extraction.extractor import email_extraction_service
@@ -30,107 +31,29 @@ from backend.app.services.report_generation.generator import forensic_report_gen
 router = APIRouter()
 
 
-class EmailTextPayload(BaseModel):
-    raw_email: Optional[str] = None
-    email_url: Optional[str] = None
-
-
 class AnalyzeExtractedAttachmentPayload(BaseModel):
     filename: str
     data_base64: str
     content_type: Optional[str] = "application/octet-stream"
 
 
-@router.post("/extract")
-async def extract_email_attachments(
-    request: Request,
-    file: Optional[UploadFile] = File(None)
-):
+async def _execute_in_memory_forensics(
+    filename: str,
+    raw_bytes: bytes,
+    content_type: str,
+    db: AsyncSession
+) -> Investigation:
     """
-    Extracts all attachments and security metadata from an uploaded .eml / .msg file,
-    pasted raw RFC 822 email text, or an email attachment URL.
-    Supports both multipart form-data (file upload) and JSON payload.
+    Executes the complete multi-layer ARGUS forensic pipeline on an in-memory byte buffer
+    without requiring the file to ever be downloaded to the user's local disk.
     """
-    data = b""
-    original_name = "email_message.eml"
-    content_type = request.headers.get("content-type", "")
-
-    if "application/json" in content_type:
-        try:
-            body = await request.json()
-            raw_text = body.get("raw_email", "")
-            url = body.get("email_url", "")
-            if raw_text:
-                data = raw_text.encode("utf-8")
-                original_name = "pasted_email.eml"
-            elif url:
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARGUS Security Scanner"}
-                )
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    data = response.read()
-                original_name = url.split("/")[-1] or "downloaded_email.eml"
-        except Exception as e:
-            raise HTTPException(status_code=400, detail=f"Failed to process JSON email request: {str(e)}")
-    else:
-        # Form / Multipart
-        form = await request.form()
-        uploaded_file = form.get("file")
-        raw_text = form.get("raw_email")
-        url = form.get("email_url")
-
-        if uploaded_file and hasattr(uploaded_file, "read"):
-            data = await uploaded_file.read()
-            original_name = getattr(uploaded_file, "filename", "message.eml") or "message.eml"
-        elif raw_text and isinstance(raw_text, str):
-            data = raw_text.encode("utf-8")
-            original_name = "pasted_email.eml"
-        elif url and isinstance(url, str):
-            try:
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARGUS Security Scanner"}
-                )
-                with urllib.request.urlopen(req, timeout=10) as response:
-                    data = response.read()
-                original_name = url.split("/")[-1] or "downloaded_email.eml"
-            except Exception as e:
-                raise HTTPException(status_code=400, detail=f"Failed to fetch email from URL: {str(e)}")
-
-    if not data or len(data) == 0:
-        raise HTTPException(status_code=400, detail="Please upload an .eml/.msg file or provide email text.")
-        raise HTTPException(status_code=400, detail="Empty email content received.")
-
-    result = email_extraction_service.parse_email(data, original_name)
-    return result
-
-
-@router.post("/analyze-attachment", response_model=InvestigationSummarySchema)
-async def analyze_extracted_attachment(
-    payload: AnalyzeExtractedAttachmentPayload,
-    db: AsyncSession = Depends(get_db)
-):
-    """
-    Directly analyzes an in-memory attachment extracted from an email without
-    the user needing to download it to their local machine.
-    """
-    try:
-        raw_bytes = base64.b64decode(payload.data_base64)
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Invalid base64 payload: {str(e)}")
-
-    if len(raw_bytes) == 0:
-        raise HTTPException(status_code=400, detail="Empty attachment data.")
-
-    # Wrap raw bytes in a mock UploadFile
     upload_file = UploadFile(
         file=io.BytesIO(raw_bytes),
-        filename=payload.filename,
-        headers={"content-type": payload.content_type or "application/octet-stream"}
+        filename=filename,
+        headers={"content-type": content_type or "application/octet-stream"}
     )
 
-    # 1. Ingestion & Quarantine
+    # 1. Ingestion & Quarantine in backend memory buffer
     ingest_meta = await ingestion_service.ingest_upload(upload_file)
 
     inv_id = ingest_meta["investigation_id"]
@@ -285,7 +208,6 @@ async def analyze_extracted_attachment(
 
         await db.commit()
         await db.refresh(investigation)
-
         return investigation
 
     except Exception as e:
@@ -294,6 +216,150 @@ async def analyze_extracted_attachment(
         investigation.completed_at = datetime.now(timezone.utc)
         await db.commit()
         raise HTTPException(status_code=500, detail=f"Forensic pipeline error: {str(e)}")
+
+
+@router.post("/extract")
+async def extract_email_attachments(
+    request: Request,
+    file: Optional[UploadFile] = File(None)
+):
+    """
+    Extracts all attachments and security metadata from an uploaded .eml / .msg file,
+    dragged attachment data, or webmail URL without writing to user's disk.
+    """
+    data = b""
+    original_name = "email_message.eml"
+    content_type = request.headers.get("content-type", "")
+
+    if "application/json" in content_type:
+        try:
+            body = await request.json()
+            raw_text = body.get("raw_email", "")
+            url = body.get("email_url", "")
+            if raw_text:
+                data = raw_text.encode("utf-8")
+                original_name = "email_message.eml"
+            elif url:
+                req = urllib.request.Request(
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARGUS Security Scanner"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = response.read()
+                original_name = url.split("/")[-1] or "downloaded_email.eml"
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Failed to process email request: {str(e)}")
+    else:
+        # Form / Multipart upload
+        form = await request.form()
+        uploaded_file = form.get("file")
+        raw_text = form.get("raw_email")
+        url = form.get("email_url")
+
+        if uploaded_file and hasattr(uploaded_file, "read"):
+            data = await uploaded_file.read()
+            original_name = getattr(uploaded_file, "filename", "message.eml") or "message.eml"
+        elif raw_text and isinstance(raw_text, str):
+            data = raw_text.encode("utf-8")
+            original_name = "email_message.eml"
+        elif url and isinstance(url, str):
+            try:
+                req = urllib.request.Request(
+                    url,
+                    headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) ARGUS Security Scanner"}
+                )
+                with urllib.request.urlopen(req, timeout=10) as response:
+                    data = response.read()
+                original_name = url.split("/")[-1] or "downloaded_email.eml"
+            except Exception as e:
+                raise HTTPException(status_code=400, detail=f"Failed to fetch from URL: {str(e)}")
+
+    if not data or len(data) == 0:
+        raise HTTPException(status_code=400, detail="Please drag and drop an .eml/.msg file or select an email.")
+
+    result = email_extraction_service.parse_email(data, original_name)
+    return result
+
+
+@router.post("/extract-and-analyze")
+async def extract_and_auto_analyze_email(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Drag and drop an entire .eml or .msg file directly.
+    Extracts all attachments in memory and automatically analyzes the primary attachment
+    in a single step with zero local file downloads.
+    """
+    raw_email_data = await file.read()
+    if not raw_email_data:
+        raise HTTPException(status_code=400, detail="Empty email file uploaded.")
+
+    email_info = email_extraction_service.parse_email(raw_email_data, file.filename or "message.eml")
+    attachments = email_info.get("attachments", [])
+
+    if not attachments:
+        raise HTTPException(
+            status_code=400,
+            detail="No file attachments were found inside this email message."
+        )
+
+    # Pick the most suspicious attachment or the first one
+    target_att = next((a for a in attachments if a.get("is_suspicious")), attachments[0])
+    raw_attachment_bytes = base64.b64decode(target_att["data_base64"])
+
+    investigation = await _execute_in_memory_forensics(
+        filename=target_att["filename"],
+        raw_bytes=raw_attachment_bytes,
+        content_type=target_att["content_type"],
+        db=db
+    )
+
+    summary = InvestigationSummarySchema.model_validate(investigation)
+
+    return {
+        "status": "success",
+        "investigation": summary,
+        "email_metadata": {
+            "subject": email_info["subject"],
+            "sender": email_info["sender"],
+            "recipient": email_info["recipient"],
+            "date": email_info["date"],
+            "spf_status": email_info["spf_status"],
+            "dkim_status": email_info["dkim_status"],
+            "originating_ip": email_info["originating_ip"],
+            "embedded_urls": email_info["embedded_urls"],
+            "total_attachments": len(attachments)
+        },
+        "all_attachments": attachments
+    }
+
+
+@router.post("/analyze-attachment", response_model=InvestigationSummarySchema)
+async def analyze_extracted_attachment(
+    payload: AnalyzeExtractedAttachmentPayload,
+    db: AsyncSession = Depends(get_db)
+):
+    """
+    Directly analyzes an in-memory attachment extracted from an email without
+    the user needing to download it to their local machine.
+    """
+    try:
+        raw_bytes = base64.b64decode(payload.data_base64)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Invalid base64 payload: {str(e)}")
+
+    if len(raw_bytes) == 0:
+        raise HTTPException(status_code=400, detail="Empty attachment data.")
+
+    investigation = await _execute_in_memory_forensics(
+        filename=payload.filename,
+        raw_bytes=raw_bytes,
+        content_type=payload.content_type or "application/octet-stream",
+        db=db
+    )
+
+    return investigation
 
 
 @router.get("/demo-sample")

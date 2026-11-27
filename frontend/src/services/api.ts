@@ -177,6 +177,25 @@ export const api = {
   },
 
   // Email Extraction & Direct Ingestion (No local download needed)
+  async extractAndAutoAnalyzeEmail(file: File): Promise<{
+    status: string;
+    investigation: InvestigationSummary;
+    email_metadata: any;
+    all_attachments: EmailAttachment[];
+  }> {
+    const formData = new FormData();
+    formData.append('file', file);
+    const res = await fetch(buildUrl('/email/extract-and-analyze'), {
+      method: 'POST',
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Failed to extract and analyze email' }));
+      throw new Error(err.detail || 'Failed to extract and analyze email');
+    }
+    return res.json();
+  },
+
   async extractEmail(fileOrData: File | { raw_email?: string; email_url?: string }): Promise<EmailExtractionResult> {
     let res: Response;
     if (fileOrData instanceof File) {
