@@ -3,7 +3,7 @@ API V1 Main Router Aggregation
 """
 
 from fastapi import APIRouter
-from backend.app.api.v1.endpoints import files, investigations, metrics, telemetry, health, defense, email
+from backend.app.api.v1.endpoints import files, investigations, metrics, telemetry, health, defense, email, whatsapp
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(defense.router, prefix="/defense", tags=["Defensive Si
 api_router.include_router(metrics.router, prefix="/metrics", tags=["SOC Metrics & Model Evaluation"])
 api_router.include_router(metrics.router, prefix="/models", tags=["Model Evaluation"])
 api_router.include_router(health.router, prefix="/health", tags=["System Health"])
+api_router.include_router(whatsapp.router, prefix="/whatsapp", tags=["WhatsApp SOC Alerts"])

@@ -248,6 +248,32 @@ export const api = {
     return res.json();
   },
 
+  async sendWhatsAppAlert(payload: {
+    phone_number?: string;
+    investigation_id: string;
+    filename: string;
+    risk_score: number;
+    risk_level: string;
+    action_taken?: string;
+    quarantine_path?: string;
+    threat_summary?: string;
+  }): Promise<{
+    status: string;
+    investigation_id: string;
+    whatsapp_url: string;
+    whatsapp_web_url: string;
+    message_body: string;
+    recipient: string;
+  }> {
+    const res = await fetch(buildUrl('/whatsapp/send-alert'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) throw new Error('Failed to dispatch WhatsApp security alert');
+    return res.json();
+  },
+
   // Health
   async getSystemHealth(): Promise<SystemHealth> {
     const res = await fetch(buildUrl('/health'));

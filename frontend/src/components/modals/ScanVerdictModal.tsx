@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   ShieldCheck,
   ShieldAlert,
@@ -11,8 +11,14 @@ import {
   Ban,
   CheckCircle,
   Lock,
+  Share2,
+  FolderLock,
+  HardDrive,
+  ExternalLink,
+  MessageSquare,
 } from 'lucide-react';
 import { InvestigationSummary, EvidenceItem } from '../../types';
+import { api } from '../../services/api';
 
 interface ScanVerdictModalProps {
   isOpen: boolean;
@@ -33,6 +39,9 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
   onNavigateToDefense,
   onAllowExecution,
 }) => {
+  const [waSending, setWaSending] = useState(false);
+  const [waSent, setWaSent] = useState(false);
+
   if (!isOpen || !verdict) return null;
 
   const triage = verdict.triage_verdict;
@@ -46,6 +55,31 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
   const problemEvidence = evidence.filter(
     (e) => e.severity === 'CRITICAL' || e.severity === 'HIGH' || e.severity === 'MEDIUM'
   );
+
+  const quarantineLocation = triage?.quarantine_path || `data/quarantine/${verdict.id}${verdict.original_name.includes('.') ? '.' + verdict.original_name.split('.').pop() : ''}`;
+
+  const handleShareWhatsAppAlert = async () => {
+    try {
+      setWaSending(true);
+      const res = await api.sendWhatsAppAlert({
+        investigation_id: verdict.id,
+        filename: verdict.original_name,
+        risk_score: verdict.risk_score,
+        risk_level: verdict.risk_level,
+        action_taken: 'EXECUTION_BLOCKED_AND_ISOLATED',
+        quarantine_path: quarantineLocation,
+        threat_summary: verdict.summary || `${problemEvidence.length} exploit vectors and high-risk anomalies detected.`,
+      });
+
+      setWaSent(true);
+      // Open WhatsApp web / mobile directly in new tab
+      window.open(res.whatsapp_url, '_blank', 'noopener,noreferrer');
+    } catch (err) {
+      console.error('Failed to trigger WhatsApp alert:', err);
+    } finally {
+      setWaSending(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
@@ -181,36 +215,63 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
               </span>
             </div>
 
-            <div className="space-y-1">
-              <h2 className="text-lg font-bold text-slate-900">
-                Warning: Dangerous Exploit Payloads Found in {verdict.original_name}
-              </h2>
-              <p className="text-xs text-slate-600 leading-relaxed">
-                ARGUS Defense Subsystem has automatically <strong>isolated and quarantined</strong> this file in the secure RAM sandbox. Direct execution on your host operating system has been blocked to prevent compromise.
+            {/* Quarantine Vault Location Card (Answer: File block hone ke baad ja khn rhi hai) */}
+            <div className="p-4 rounded-2xl bg-slate-900 border border-slate-800 text-slate-200 space-y-2.5">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800">
+                <div className="flex items-center gap-2 text-rose-400 text-xs font-bold uppercase tracking-wider">
+                  <FolderLock className="w-4 h-4 text-rose-400" />
+                  <span>Quarantine Vault Trajectory (Where File is Stored):</span>
+                </div>
+                <span className="text-[10px] font-mono bg-rose-500/20 text-rose-300 px-2 py-0.5 rounded border border-rose-500/30">
+                  Read-Only Isolated Storage
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                <div>
+                  <span className="text-[11px] text-slate-400 block font-semibold">Physical Disk Storage Location:</span>
+                  <div className="font-mono text-emerald-400 text-[11px] bg-black/40 p-2 rounded-xl mt-1 break-all border border-slate-800">
+                    📂 {quarantineLocation}
+                  </div>
+                </div>
+                <div>
+                  <span className="text-[11px] text-slate-400 block font-semibold">Containment Action Enforced:</span>
+                  <div className="font-mono text-amber-300 text-[11px] bg-black/40 p-2 rounded-xl mt-1 border border-slate-800">
+                    🛡️ Host Execution Revoked • Network Sockets Blocked
+                  </div>
+                </div>
+              </div>
+
+              <p className="text-[11px] text-slate-400 leading-relaxed pt-1">
+                *File host system se completely disconnect karke ARGUS ke cryptographic quarantine vault me store kar di gayi hai, taaki user ke computer par koi bhi binary execute na ho sake.
               </p>
             </div>
 
-            {/* Quick Threat Score Strip */}
-            <div className="grid grid-cols-3 gap-2.5">
-              <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-center">
-                <span className="text-[10px] font-bold text-rose-700 block uppercase">Threat Score</span>
-                <span className="text-xl font-extrabold text-rose-600 font-mono">
-                  {verdict.risk_score} / 100
-                </span>
-                <span className="text-[10px] text-rose-600 font-bold block">{verdict.risk_level}</span>
+            {/* WhatsApp SOC Alert Integration */}
+            <div className="p-4 rounded-2xl bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/10 border border-emerald-500/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-500 text-white flex items-center justify-center shrink-0 shadow-sm shadow-emerald-500/20">
+                  <MessageSquare className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <div className="text-xs font-bold text-slate-900 flex items-center gap-1.5">
+                    <span>Instant WhatsApp Security Alert</span>
+                    <span className="text-[10px] font-semibold bg-emerald-100 text-emerald-800 px-1.5 py-0.2 rounded">Live SOC</span>
+                  </div>
+                  <p className="text-[11px] text-slate-600">
+                    Send threat report, file hashes & block details directly to your WhatsApp
+                  </p>
+                </div>
               </div>
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">Containment Status</span>
-                <span className="text-sm font-extrabold text-rose-700 block mt-1">LOCKED IN RAM</span>
-                <span className="text-[10px] text-slate-400 block">Host Protected</span>
-              </div>
-              <div className="p-3 rounded-2xl bg-slate-50 border border-slate-200 text-center">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">Defense Rules</span>
-                <span className="text-base font-bold text-indigo-700 font-mono mt-0.5 block">
-                  Auto-Enforced
-                </span>
-                <span className="text-[10px] text-slate-500 block">Firewall & ACL</span>
-              </div>
+
+              <button
+                onClick={handleShareWhatsAppAlert}
+                disabled={waSending}
+                className="w-full sm:w-auto px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold cursor-pointer transition-all flex items-center justify-center gap-1.5 shadow-sm shadow-emerald-600/20 shrink-0 active:scale-95"
+              >
+                <Share2 className="w-3.5 h-3.5" />
+                <span>{waSent ? 'Sent to WhatsApp ✓' : 'Send Alert on WhatsApp'}</span>
+              </button>
             </div>
 
             {/* Detailed Problems Found in the file */}
@@ -225,7 +286,7 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
                 </span>
               </div>
 
-              <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+              <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
                 {problemEvidence.length > 0 ? (
                   problemEvidence.map((ev, idx) => {
                     const isEvCrit = ev.severity === 'CRITICAL';
@@ -272,17 +333,6 @@ export const ScanVerdictModal: React.FC<ScanVerdictModalProps> = ({
                   </div>
                 )}
               </div>
-            </div>
-
-            {/* Defense Quarantine Callout */}
-            <div className="p-3.5 rounded-2xl bg-slate-900 text-white text-xs space-y-1">
-              <div className="flex items-center gap-2 text-rose-400 font-bold text-[11px]">
-                <Lock className="w-3.5 h-3.5 text-rose-400" />
-                <span>ARGUS DEFENSE QUARANTINE ACTIVE</span>
-              </div>
-              <p className="text-slate-300 text-[11px] leading-relaxed">
-                File execution is blocked. Automated defensive rules (Process Kill + IP Firewall Block + DNS Sinkhole) are active in the ARGUS Defense Center.
-              </p>
             </div>
 
             {/* Action Buttons */}
