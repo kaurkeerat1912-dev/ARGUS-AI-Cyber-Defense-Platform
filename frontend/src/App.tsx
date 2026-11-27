@@ -9,6 +9,7 @@ import { DefensiveSimulation } from './pages/DefensiveSimulation';
 import { MlEvaluation } from './pages/MlEvaluation';
 import { Reports } from './pages/Reports';
 import { Settings } from './pages/Settings';
+import { WhatsAppWebPage } from './pages/WhatsAppWebPage';
 import { WhatsAppFloatingWidget } from './components/modals/WhatsAppFloatingWidget';
 import { WhatsAppWebSimulatorModal } from './components/modals/WhatsAppWebSimulatorModal';
 
@@ -75,6 +76,14 @@ export function App() {
               onNavigateToInvestigate={() => setActiveTab('investigate')}
               onNavigateToDefense={handleNavigateToDefense}
               onNavigateToGraph={handleNavigateToGraph}
+            />
+          )}
+
+          {activeTab === 'whatsapp-web' && (
+            <WhatsAppWebPage
+              onOpenDetails={handleSelectInvestigation}
+              onOpenGraph={handleNavigateToGraph}
+              onOpenDefense={handleNavigateToDefense}
             />
           )}
 
