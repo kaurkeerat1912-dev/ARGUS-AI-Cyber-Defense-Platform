@@ -25,7 +25,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const navItems = [
     { id: 'overview', label: 'Dashboard', icon: LayoutDashboard, color: 'text-blue-600' },
-    { id: 'investigate', label: 'Scan & Email Forensics', icon: SearchCheck, color: 'text-indigo-600', badge: 'Gmail' },
+    { id: 'investigate', label: 'Scan & Email Forensics', icon: SearchCheck, color: 'text-indigo-600', badge: 'Email' },
     {
       id: 'details',
       label: 'Evidence Findings',

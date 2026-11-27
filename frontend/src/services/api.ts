@@ -21,7 +21,7 @@ const getApiBase = (): string => {
   }
   if (typeof window !== 'undefined') {
     const isLocal = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
-    if (isLocal && window.location.port === '5173') {
+    if (isLocal) {
       return `http://${window.location.hostname}:8000/api/v1`;
     }
   }
