@@ -238,6 +238,16 @@ export const api = {
     return res.json();
   },
 
+  async connectGmail(userEmail?: string): Promise<import('../types').GmailInboxResponse> {
+    const res = await fetch(buildUrl('/email/gmail/connect'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ user_email: userEmail || 'analyst@argus-defense.ai' }),
+    });
+    if (!res.ok) throw new Error('Failed to connect to Gmail account');
+    return res.json();
+  },
+
   // Health
   async getSystemHealth(): Promise<SystemHealth> {
     const res = await fetch(buildUrl('/health'));

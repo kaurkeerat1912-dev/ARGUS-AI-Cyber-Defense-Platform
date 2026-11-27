@@ -272,3 +272,26 @@ export interface EmailExtractionResult {
   attachments: EmailAttachment[];
   embedded_urls: EmailSuspiciousUrl[];
 }
+
+export interface GmailMessage {
+  id: string;
+  thread_id: string;
+  subject: string;
+  sender: string;
+  snippet: string;
+  date: string;
+  unread: boolean;
+  spf_status: string;
+  dkim_status: string;
+  originating_ip: string;
+  has_attachments: boolean;
+  attachments: EmailAttachment[];
+}
+
+export interface GmailInboxResponse {
+  status: string;
+  account_email: string;
+  unread_count: number;
+  total_messages: number;
+  messages: GmailMessage[];
+}

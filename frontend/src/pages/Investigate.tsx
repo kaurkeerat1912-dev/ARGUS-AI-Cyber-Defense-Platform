@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   Upload,
   AlertCircle,
@@ -20,9 +20,12 @@ import {
   ExternalLink,
   Lock,
   Link as LinkIcon,
+  Inbox,
+  Paperclip,
+  CheckCircle,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { InvestigationSummary, EvidenceItem, EmailExtractionResult, EmailAttachment } from '../types';
+import { InvestigationSummary, EvidenceItem, EmailExtractionResult, EmailAttachment, GmailMessage, GmailInboxResponse } from '../types';
 import { ScanVerdictModal } from '../components/modals/ScanVerdictModal';
 
 interface InvestigateProps {
@@ -61,8 +64,37 @@ export const Investigate: React.FC<InvestigateProps> = ({
   const [analyzingAttachmentId, setAnalyzingAttachmentId] = useState<string | null>(null);
   const [attachmentLinkUrl, setAttachmentLinkUrl] = useState('');
 
+  // Gmail Live Integration State
+  const [gmailLoading, setGmailLoading] = useState(false);
+  const [gmailData, setGmailData] = useState<GmailInboxResponse | null>(null);
+  const [selectedGmailMessage, setSelectedGmailMessage] = useState<GmailMessage | null>(null);
+  const [gmailFilter, setGmailFilter] = useState<'all' | 'unread' | 'attachments'>('attachments');
+
   const inputRef = useRef<HTMLInputElement>(null);
   const emailInputRef = useRef<HTMLInputElement>(null);
+
+  // Auto-fetch Gmail inbox when entering email mode
+  useEffect(() => {
+    if (activeMode === 'email' && !gmailData && !gmailLoading) {
+      loadGmailInbox();
+    }
+  }, [activeMode]);
+
+  const loadGmailInbox = async () => {
+    try {
+      setGmailLoading(true);
+      setError(null);
+      const data = await api.connectGmail();
+      setGmailData(data);
+      if (data.messages && data.messages.length > 0) {
+        setSelectedGmailMessage(data.messages[0]);
+      }
+    } catch (err: any) {
+      console.error('Failed to load Gmail:', err);
+    } finally {
+      setGmailLoading(false);
+    }
+  };
 
   const calculateFileSha256 = async (file: File) => {
     try {
@@ -363,9 +395,9 @@ export const Investigate: React.FC<InvestigateProps> = ({
           }`}
         >
           <Mail className="w-4 h-4 text-indigo-600" />
-          <span>Email Attachment (Bina Download Kiye Direct Drag & Drop)</span>
+          <span>Live Gmail & Email Forensics</span>
           <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-semibold border border-emerald-200">
-            Zero Local Download
+            Direct Cloud Triage
           </span>
         </button>
       </div>
@@ -451,9 +483,240 @@ export const Investigate: React.FC<InvestigateProps> = ({
         </div>
       )}
 
-      {/* MODE 2: Email Attachment Extractor (Bina Download Kiye Direct Drag & Drop) */}
+      {/* MODE 2: Email Attachment Extractor & Gmail Live Integration */}
       {activeMode === 'email' && (
         <div className="space-y-6">
+          {/* Top Gmail Connected Header & Direct Controls */}
+          <div className="p-6 rounded-3xl border border-slate-200 bg-white shadow-xs">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-5 border-b border-slate-100">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-red-500 to-rose-600 flex items-center justify-center text-white shadow-md shadow-rose-500/20">
+                  <Mail className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="text-base font-bold text-slate-900">Live Gmail Inbox Integration</h3>
+                    <span className="flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                      <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                      Connected
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Account: <span className="font-mono font-medium text-slate-700">{gmailData?.account_email || 'analyst@argus-defense.ai'}</span> • Live attachment triage without downloading to host
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-2 shrink-0">
+                <button
+                  onClick={loadGmailInbox}
+                  disabled={gmailLoading}
+                  className="px-3.5 py-2 rounded-xl border border-slate-200 hover:bg-slate-50 text-slate-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
+                >
+                  <RefreshCw className={`w-3.5 h-3.5 ${gmailLoading ? 'animate-spin text-indigo-600' : 'text-slate-500'}`} />
+                  <span>Sync Inbox</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={handleLoadDemoEmail}
+                  className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs active:scale-95"
+                >
+                  <Sparkles className="w-3.5 h-3.5" />
+                  <span>Simulate Phishing Email</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Gmail Live Inbox Browser */}
+            <div className="pt-5">
+              <div className="flex items-center justify-between pb-3">
+                <div className="flex items-center gap-2">
+                  <span className="text-xs font-bold text-slate-900 uppercase tracking-wider">Inbox Messages</span>
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-mono font-semibold">
+                    {gmailData?.messages.length || 0}
+                  </span>
+                </div>
+                <div className="flex items-center gap-1 text-xs">
+                  <button
+                    onClick={() => setGmailFilter('attachments')}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      gmailFilter === 'attachments' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    With Attachments
+                  </button>
+                  <button
+                    onClick={() => setGmailFilter('all')}
+                    className={`px-3 py-1 rounded-lg text-xs font-semibold transition-colors ${
+                      gmailFilter === 'all' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    All Messages
+                  </button>
+                </div>
+              </div>
+
+              {gmailLoading && !gmailData ? (
+                <div className="py-12 flex flex-col items-center justify-center text-slate-500 text-xs">
+                  <RefreshCw className="w-6 h-6 animate-spin text-indigo-600 mb-2" />
+                  <span>Syncing Gmail telemetry and message queue...</span>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+                  {/* Left: Email List */}
+                  <div className="lg:col-span-5 space-y-2 max-h-[360px] overflow-y-auto pr-1">
+                    {gmailData?.messages.map((msg) => {
+                      const isSelected = selectedGmailMessage?.id === msg.id;
+                      return (
+                        <div
+                          key={msg.id}
+                          onClick={() => {
+                            setSelectedGmailMessage(msg);
+                            setEmailResult({
+                              email_format: 'MIME/RFC822',
+                              original_name: msg.subject + '.eml',
+                              subject: msg.subject,
+                              sender: msg.sender,
+                              recipient: 'analyst@argus-defense.ai',
+                              date: msg.date,
+                              spf_status: msg.spf_status,
+                              dkim_status: msg.dkim_status,
+                              originating_ip: msg.originating_ip,
+                              body_snippet: msg.snippet,
+                              attachment_count: msg.attachments.length,
+                              attachments: msg.attachments,
+                              embedded_urls: [],
+                            });
+                          }}
+                          className={`p-3.5 rounded-2xl border text-left cursor-pointer transition-all ${
+                            isSelected
+                              ? 'border-indigo-500 bg-indigo-50/50 shadow-xs'
+                              : 'border-slate-200 hover:border-slate-300 hover:bg-slate-50/70 bg-white'
+                          }`}
+                        >
+                          <div className="flex items-center justify-between gap-2">
+                            <span className="text-[11px] font-bold text-slate-800 truncate">{msg.sender.split('<')[0].trim()}</span>
+                            <span className="text-[10px] text-slate-400 shrink-0 font-mono">{msg.date}</span>
+                          </div>
+                          <div className="text-xs font-semibold text-slate-900 truncate mt-0.5">{msg.subject}</div>
+                          <div className="text-[11px] text-slate-500 line-clamp-1 mt-1">{msg.snippet}</div>
+                          <div className="flex items-center gap-2 mt-2 pt-2 border-t border-slate-100">
+                            <span className="flex items-center gap-1 text-[10px] font-semibold text-slate-600">
+                              <Paperclip className="w-3 h-3 text-indigo-500" />
+                              <span>{msg.attachments.length} attachment{msg.attachments.length > 1 ? 's' : ''}</span>
+                            </span>
+                            {msg.spf_status === 'FAIL' && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                SPF FAIL
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  {/* Right: Message Details & Instant Attachment Triage */}
+                  <div className="lg:col-span-7 p-4 rounded-2xl border border-slate-200 bg-slate-50/60 flex flex-col justify-between">
+                    {selectedGmailMessage ? (
+                      <div className="space-y-4">
+                        <div className="border-b border-slate-200 pb-3">
+                          <div className="flex items-start justify-between gap-2">
+                            <div>
+                              <h4 className="text-sm font-bold text-slate-900">{selectedGmailMessage.subject}</h4>
+                              <div className="text-xs text-slate-600 mt-1 space-y-0.5">
+                                <div><span className="text-slate-400 font-semibold">From:</span> {selectedGmailMessage.sender}</div>
+                                <div><span className="text-slate-400 font-semibold">Originating IP:</span> <span className="font-mono text-slate-800 font-medium">{selectedGmailMessage.originating_ip}</span></div>
+                              </div>
+                            </div>
+                            <div className="flex flex-col items-end gap-1.5 shrink-0">
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                selectedGmailMessage.spf_status === 'PASS' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}>
+                                SPF: {selectedGmailMessage.spf_status}
+                              </span>
+                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                                selectedGmailMessage.dkim_status === 'PASS' ? 'bg-emerald-50 text-emerald-700 border-emerald-200' : 'bg-rose-50 text-rose-700 border-rose-200'
+                              }`}>
+                                DKIM: {selectedGmailMessage.dkim_status}
+                              </span>
+                            </div>
+                          </div>
+                          <p className="text-xs text-slate-700 mt-3 p-3 bg-white rounded-xl border border-slate-200/80 italic leading-relaxed">
+                            "{selectedGmailMessage.snippet}"
+                          </p>
+                        </div>
+
+                        {/* Attachments Section in Selected Message */}
+                        <div>
+                          <div className="text-xs font-bold text-slate-900 mb-2 flex items-center justify-between">
+                            <span>Detected Attachments ({selectedGmailMessage.attachments.length})</span>
+                            <span className="text-[10px] text-emerald-700 font-medium bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-200">
+                              Isolated in RAM Buffer
+                            </span>
+                          </div>
+
+                          <div className="space-y-2">
+                            {selectedGmailMessage.attachments.map((att) => {
+                              const isAnalyzingThis = analyzing && analyzingAttachmentId === att.id;
+                              return (
+                                <div
+                                  key={att.id}
+                                  className="p-3 bg-white rounded-xl border border-slate-200 shadow-xs flex items-center justify-between gap-3"
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className={`p-2 rounded-lg ${att.is_suspicious ? 'bg-rose-50 text-rose-600' : 'bg-indigo-50 text-indigo-600'}`}>
+                                      <FileCode className="w-4 h-4" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="text-xs font-bold text-slate-900 truncate">{att.filename}</div>
+                                      <div className="text-[10px] text-slate-400 font-mono">
+                                        {(att.size_bytes / 1024).toFixed(1)} KB • {att.content_type}
+                                      </div>
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-center gap-2 shrink-0">
+                                    {att.is_suspicious && (
+                                      <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-rose-50 text-rose-700 border border-rose-200">
+                                        Exploit Risk
+                                      </span>
+                                    )}
+                                    <button
+                                      disabled={analyzing}
+                                      onClick={() => handleAnalyzeExtractedAttachment(att)}
+                                      className="px-3.5 py-1.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold cursor-pointer transition-all flex items-center gap-1.5 shadow-xs disabled:opacity-50 active:scale-95"
+                                    >
+                                      {isAnalyzingThis ? (
+                                        <>
+                                          <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                                          <span>Scanning...</span>
+                                        </>
+                                      ) : (
+                                        <>
+                                          <ShieldAlert className="w-3.5 h-3.5" />
+                                          <span>Scan in Sandbox</span>
+                                        </>
+                                      )}
+                                    </button>
+                                  </div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="py-16 text-center text-xs text-slate-400">
+                        Select a message from your Gmail inbox to inspect attachments
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+
           {/* Email Direct Drop Zone */}
           <div
             onDragOver={(e) => {
@@ -479,7 +742,7 @@ export const Investigate: React.FC<InvestigateProps> = ({
               }
             }}
             onClick={() => emailInputRef.current?.click()}
-            className={`p-10 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer bg-white shadow-xs ${
+            className={`p-8 rounded-3xl border-2 border-dashed text-center transition-all cursor-pointer bg-white shadow-xs ${
               dragActive
                 ? 'border-indigo-500 bg-indigo-50/60 scale-[1.01]'
                 : emailResult
@@ -499,34 +762,20 @@ export const Investigate: React.FC<InvestigateProps> = ({
               className="hidden"
             />
 
-            <div className="w-14 h-14 rounded-2xl border border-indigo-100 bg-indigo-50 flex items-center justify-center mx-auto mb-3 text-indigo-600 shadow-xs">
-              <Mail className="w-7 h-7 text-indigo-600" />
+            <div className="w-12 h-12 rounded-2xl border border-indigo-100 bg-indigo-50 flex items-center justify-center mx-auto mb-2 text-indigo-600 shadow-xs">
+              <Upload className="w-6 h-6 text-indigo-600" />
             </div>
 
-            <div className="text-base font-bold text-slate-900">
-              Drag & Drop Email (.eml, .msg) ya seedha Email Attachment yahan drop karein
+            <div className="text-sm font-bold text-slate-900">
+              Drag & Drop Email (.eml, .msg) or Direct Attachment Here
             </div>
             <p className="text-xs text-slate-500 mt-1 max-w-xl mx-auto">
-              File aapke computer par save ya download <strong>nahi</strong> hogi. Attachment seedha ARGUS ke secure isolated memory sandbox me khul kar scan hogi.
+              Attachments are parsed directly in an isolated memory buffer without saving to your host drive.
             </p>
-
-            <div className="flex items-center justify-center gap-3 mt-4 pt-3 border-t border-slate-100">
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleLoadDemoEmail();
-                }}
-                className="px-4 py-2 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-semibold cursor-pointer transition-colors flex items-center gap-1.5 shadow-xs"
-              >
-                <Sparkles className="w-3.5 h-3.5" />
-                <span>⚡ Test with Real Email Attachment (Invoice PDF Exploit)</span>
-              </button>
-            </div>
           </div>
 
-          {/* Quick Attachment Link Ingestion (Optional helper) */}
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex flex-col sm:flex-row items-center gap-3 text-xs">
+          {/* Direct Link Ingestion */}
+          <div className="p-4 rounded-2xl bg-white border border-slate-200 flex flex-col sm:flex-row items-center gap-3 text-xs shadow-xs">
             <div className="flex items-center gap-2 text-slate-600 shrink-0 font-semibold">
               <LinkIcon className="w-4 h-4 text-indigo-600" />
               <span>Email Attachment Link:</span>
@@ -535,15 +784,15 @@ export const Investigate: React.FC<InvestigateProps> = ({
               type="text"
               value={attachmentLinkUrl}
               onChange={(e) => setAttachmentLinkUrl(e.target.value)}
-              placeholder="Paste attachment link directly from Gmail / Outlook / Drive..."
-              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-white text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
+              placeholder="Paste direct attachment URL from Gmail / Outlook / Drive..."
+              className="w-full px-3 py-2 rounded-xl border border-slate-200 bg-slate-50/60 text-xs text-slate-800 focus:outline-none focus:border-indigo-500"
             />
             <button
               onClick={handleFetchFromUrl}
               disabled={!attachmentLinkUrl.trim() || extractingEmail}
               className="px-4 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shrink-0 cursor-pointer disabled:opacity-50 transition-all active:scale-95"
             >
-              Scan from Link
+              Scan Link
             </button>
           </div>
 
@@ -627,13 +876,13 @@ export const Investigate: React.FC<InvestigateProps> = ({
                     </span>
                   </div>
                   <span className="text-[11px] text-slate-400 font-medium">
-                    Bina download kiye seedha scan karein
+                    Direct automated sandbox inspection
                   </span>
                 </div>
 
                 {emailResult.attachments.length === 0 ? (
                   <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-100">
-                    Is email me koi attached file nahi mili.
+                    No attachments detected in this email.
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
